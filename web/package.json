@@ -1,0 +1,45 @@
+{
+  "name": "web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fake-traccar": "node dev/fake-traccar.mjs"
+  },
+  "dependencies": {
+    "@deck.gl/core": "~9.4.0",
+    "@deck.gl/layers": "~9.4.0",
+    "@deck.gl/mapbox": "~9.4.0",
+    "@deck.gl/mesh-layers": "~9.4.0",
+    "@luma.gl/core": "~9.4.0",
+    "@luma.gl/engine": "~9.4.0",
+    "@luma.gl/gltf": "~9.4.0",
+    "@luma.gl/shadertools": "~9.4.0",
+    "@luma.gl/webgl": "~9.4.0",
+    "@math.gl/web-mercator": "^4.1.0",
+    "maplibre-gl": "^5.24.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "^29.1.1",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^4.1.11"
+  }
+}

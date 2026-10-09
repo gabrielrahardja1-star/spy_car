@@ -1,0 +1,109 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: auto;
+}
+
+.logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-tile);
+  background: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.appName {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.appSub {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
+  padding: 0 20px;
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.tab[aria-current='page'] {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-h);
+  padding: 0 16px;
+  margin-left: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.chipDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.chipLabel {
+  font-weight: 600;
+}
+
+.chipAge {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.logout {
+  min-height: var(--control-h);
+  padding: 0 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-weight: 600;
+}

@@ -1,0 +1,108 @@
+# Caddyfile for the "web" container (Caddy 2).
+# Docs followed (2026-10-09): https://caddyserver.com/docs/caddyfile/concepts (env placeholders),
+# .../directives/reverse_proxy, .../try_files, .../header, .../matchers, .../encode, .../file_server
+#
+# SITE_ADDRESS comes from deploy/.env through docker-compose.yml:
+#   tracker.example.com   -> automatic HTTPS (Let's Encrypt) + redirect from HTTP
+#   :80                   -> plain HTTP only (first local test, or behind another proxy)
+# {$SITE_ADDRESS} is replaced by Caddy before parsing, so it can hold a whole address.
+
+{$SITE_ADDRESS} {
+
+	# Smaller downloads (the JavaScript bundle is large).
+	encode zstd gzip
+
+	# ---- Security headers -------------------------------------------------------------
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		-Server
+
+		# Content-Security-Policy, REPORT-ONLY on purpose. It was written by reading the app's
+		# source and its built files, and could not be tested in a browser. Report-Only never blocks
+		# anything: violations show in the browser console (F12). When the console is clean on all
+		# three screens, rename this header to "Content-Security-Policy" to enforce it.
+		#   tiles.openfreemap.org                    map style + vector tiles
+		#   fonts.googleapis.com / fonts.gstatic.com Montserrat + JetBrains Mono (see index.html)
+		#   worker-src/child-src blob:               MapLibre runs its tile workers from blob: URLs
+		#   img-src data: blob:                      MapLibre and deck.gl create images in memory
+		#   connect-src wss: ws:                     Traccar live socket (same host)
+		#   style-src 'unsafe-inline'                React sets inline style="" attributes
+		#   www.gstatic.com                          deck.gl/loaders.gl can fetch Draco decoders from there
+		#                                            (only used if a model is Draco-compressed; ours are not)
+		Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://tiles.openfreemap.org; connect-src 'self' https://tiles.openfreemap.org wss: ws:; worker-src 'self' blob:; child-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none'"
+	}
+
+	# HSTS only when the request really arrived over HTTPS (real domain). Not sent for plain
+	# HTTP tests or when another proxy in front terminates HTTPS (that proxy should add it).
+	# 30 days to start; once HTTPS is proven stable, raise to 31536000 (1 year).
+	@https protocol https
+	header @https Strict-Transport-Security "max-age=2592000"
+
+	# ---- Traccar API ------------------------------------------------------------------
+	# Everything under /api, including the websocket /api/socket, goes to Traccar.
+	# Caddy proxies WebSocket upgrades automatically (reverse_proxy docs), and there is no idle
+	# timeout unless stream_timeout is set (we do not set it).
+	#
+	# The public side is READ-ONLY apart from login/logout (/api/session). So strangers cannot
+	# create users or change data through the public domain, even if Traccar registration were left
+	# on. The admin does every change through the SSH tunnel to port 8082, which does not pass here.
+	# If a future version of the app needs another write call, relax @write below.
+	handle /api/* {
+		@write {
+			not path /api/session
+			not method GET HEAD OPTIONS
+		}
+		respond @write "Read-only API on this address" 403
+
+		reverse_proxy traccar:8082
+	}
+
+	# ---- The app (single-page app) ----------------------------------------------------
+	# Hashed build files never change under the same name: cache for a year.
+	# No index.html fallback here, so a missing file is a real 404. The header is only added to
+	# successful responses (match status 2xx), so an error is never cached for a year.
+	handle /assets/* {
+		root * /srv
+		header Cache-Control "public, max-age=31536000, immutable" {
+			match status 2xx
+		}
+		file_server
+	}
+
+	# 3D models and textures keep their names: one day, then re-check.
+	handle /models/* {
+		root * /srv
+		header Cache-Control "public, max-age=86400" {
+			match status 2xx
+		}
+		file_server
+	}
+
+	# index.html and everything else: always re-check, so a new deploy shows up at once.
+	# Client-side routes (/history, /dashboard) have no file: serve index.html.
+	handle {
+		root * /srv
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}
+
+# Internal status page used by the Docker healthcheck. Port 8081 is NOT published.
+:8081 {
+	respond /healthz "ok" 200
+}
+
+# ---------------------------------------------------------------------------------------
+# OPTIONAL (off): Traccar admin UI on its own sub-domain, instead of an SSH tunnel.
+# Safer default = leave this commented out and use the tunnel (README, "First run").
+# If you enable it: create a DNS A record for admin.example.com, remove the leading "# ",
+# then `docker compose restart web`. Use a long unique admin password. Anyone on the internet
+# can then reach the admin login page. Do NOT use this in Mode B unless that proxy also forwards it.
+#
+# admin.example.com {
+# 	reverse_proxy traccar:8082
+# }

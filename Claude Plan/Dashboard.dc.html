@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0;background:#E6F0FF}
+a{color:inherit;text-decoration:none}a:hover{color:#0E1320}
+</style>
+</helmet>
+<div style="min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; background: #E6F0FF; color: #0E1320; font-family: 'Montserrat', system-ui, sans-serif; font-size: 14px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 24px">
+<div style="display: flex; align-items: center; gap: 12px; margin-right: auto">
+<div style="width: 44px; height: 44px; border-radius: 14px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6F0FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+</div>
+<div>
+<div style="font-weight: 700; font-size: 16px">Site Car Tracker</div>
+<div style="color: #5A6B85; font-size: 12px">Purchasing · 2 cars</div>
+</div>
+</div>
+<nav aria-label="Views" style="display: flex; gap: 4px; padding: 4px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 999px">
+<a href="Main.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; color: #5A6B85; font-weight: 600">Live map</a>
+<a href="History.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; color: #5A6B85; font-weight: 600">Route history</a>
+<a href="Dashboard.dc.html" aria-current="page" style="display: flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; background: #0E1320; color: #E6F0FF; font-weight: 600">Dashboard</a>
+</nav>
+<div style="display: flex; align-items: center; gap: 12px; margin-left: auto">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 999px">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: {{accent}}"></span>
+<span style="font-weight: 600">Live</span>
+<span style="color: #5A6B85; font-family: 'JetBrains Mono', monospace; font-size: 12px">updated 4 s ago</span>
+</div>
+</div>
+</header>
+
+<main style="flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 0 24px 24px; max-width: 1440px; width: 100%; box-sizing: border-box; margin: 0 auto">
+
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 4px 0">
+<div>
+<h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px">Dashboard</h1>
+<div style="color: #5A6B85">Thu 8 Oct 2026 · as of 14:18</div>
+</div>
+<div style="display: flex; padding: 4px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 999px">
+<button type="button" aria-pressed="true" style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: #0E1320; color: #E6F0FF; font: inherit; font-weight: 700; cursor: pointer">Today</button>
+<button type="button" aria-pressed="false" style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: #5A6B85; font: inherit; font-weight: 700; cursor: pointer">7 days</button>
+<button type="button" aria-pressed="false" style="min-height: 44px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: #5A6B85; font: inherit; font-weight: 700; cursor: pointer">30 days</button>
+</div>
+</div>
+
+<section aria-label="Today's totals" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+<div style="background: linear-gradient(135deg, #1250BF, #1D6FE8); border: 1px solid #1250BF; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 8px; color: #FFFFFF">
+<div style="color: #FFFFFF">Distance today</div>
+<div style="font-size: 34px; font-weight: 700; letter-spacing: -0.5px">102 km</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #FFFFFF">Car 01 64 · Car 02 38</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<div style="color: #5A6B85">Driving time</div>
+<div style="font-size: 34px; font-weight: 700; letter-spacing: -0.5px">3 h 25 min</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5A6B85">Car 01 2:10 · Car 02 1:15</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<div style="color: #5A6B85">Trips</div>
+<div style="font-size: 34px; font-weight: 700; letter-spacing: -0.5px">3</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5A6B85">1 in progress</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<div style="color: #5A6B85">Signal gaps</div>
+<div style="font-size: 34px; font-weight: 700; letter-spacing: -0.5px">1</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5A6B85">Car 02 · 6 min at 12:58</div>
+</div>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px">
+
+<section aria-label="Distance per day" style="flex: 1 1 420px; min-width: 0; box-sizing: border-box; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Distance per day, km</h2>
+<div style="display: flex; gap: 16px; color: #5A6B85">
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #1D6FE8"></span>Car 01</div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #A9CBFF"></span>Car 02</div>
+</div>
+</div>
+<div style="display: flex; gap: 12px">
+<div style="display: flex; flex-direction: column; justify-content: space-between; height: 190px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5A6B85; text-align: right"><span>120</span><span>80</span><span>40</span><span>0</span></div>
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<div style="position: relative; height: 180px; margin-top: 5px; border-bottom: 1px solid #B9C8E0; background: repeating-linear-gradient(to bottom, #D5E2F7 0, #D5E2F7 1px, transparent 1px, transparent 60px)">
+<div style="position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; align-items: end">
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px"><div title="Car 01, 72 km" style="width: 16px; height: 108px; border-radius: 4px 4px 0 0; background: #1D6FE8"></div><div title="Car 02, 50 km" style="width: 16px; height: 75px; border-radius: 4px 4px 0 0; background: #A9CBFF"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px"><div title="Car 01, 95 km" style="width: 16px; height: 143px; border-radius: 4px 4px 0 0; background: #1D6FE8"></div><div title="Car 02, 61 km" style="width: 16px; height: 92px; border-radius: 4px 4px 0 0; background: #A9CBFF"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px"><div title="Car 01, 64 km" style="width: 16px; height: 96px; border-radius: 4px 4px 0 0; background: #1D6FE8"></div><div title="Car 02, 0 km" style="width: 16px; height: 2px; background: #A9CBFF"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px"><div title="Car 01, 110 km" style="width: 16px; height: 165px; border-radius: 4px 4px 0 0; background: #1D6FE8"></div><div title="Car 02, 77 km" style="width: 16px; height: 116px; border-radius: 4px 4px 0 0; background: #A9CBFF"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px"><div title="Car 01, 88 km" style="width: 16px; height: 132px; border-radius: 4px 4px 0 0; background: #1D6FE8"></div><div title="Car 02, 45 km" style="width: 16px; height: 68px; border-radius: 4px 4px 0 0; background: #A9CBFF"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px"><div title="Car 01, 40 km" style="width: 16px; height: 60px; border-radius: 4px 4px 0 0; background: #1D6FE8"></div><div title="Car 02, 30 km" style="width: 16px; height: 45px; border-radius: 4px 4px 0 0; background: #A9CBFF"></div></div>
+<div style="display: flex; align-items: flex-end; justify-content: center; gap: 4px"><div title="Car 01, 64 km so far" style="width: 16px; height: 96px; border-radius: 4px 4px 0 0; background: #1D6FE8"></div><div title="Car 02, 38 km so far" style="width: 16px; height: 57px; border-radius: 4px 4px 0 0; background: #A9CBFF"></div></div>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; text-align: center; font-size: 12px; color: #5A6B85">
+<span>Fri 2</span><span>Sat 3</span><span>Sun 4</span><span>Mon 5</span><span>Tue 6</span><span>Wed 7</span><span style="color: #0E1320; font-weight: 700">Today</span>
+</div>
+</div>
+</div>
+</section>
+
+<section aria-label="Today's timeline" style="flex: 1 1 420px; min-width: 0; box-sizing: border-box; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Today, hour by hour</h2>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; color: #5A6B85">
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: {{accent}}"></span>Moving</div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; border-radius: 3px; background: #F3C892"></span>Parked</div>
+<div style="display: flex; align-items: center; gap: 8px"><span style="width: 12px; height: 12px; box-sizing: border-box; border-radius: 3px; border: 2px dashed #5A6B85"></span>No signal</div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between"><span style="font-weight: 700">Car 01</span><span style="color: {{accent}}; font-weight: 700">Moving now</span></div>
+<div style="display: flex; height: 36px; border-radius: 10px; overflow: hidden; background: #F1F6FF">
+<div title="Parked 06:00 to 07:42" style="width: 14.2%; background: #F3C892"></div>
+<div title="Moving 07:42 to 07:58" style="width: 2.2%; background: {{accent}}"></div>
+<div title="Parked 3 min" style="width: 0.4%; background: #F3C892"></div>
+<div title="Moving 08:01 to 08:36" style="width: 4.9%; background: {{accent}}"></div>
+<div title="Parked 8 min" style="width: 1.1%; background: #F3C892"></div>
+<div title="Moving 08:44 to 09:05" style="width: 2.9%; background: {{accent}}"></div>
+<div title="Parked 09:05 to 13:20" style="width: 35.4%; background: #F3C892"></div>
+<div title="Moving 13:20 to now" style="width: 8.1%; background: {{accent}}"></div>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; justify-content: space-between"><span style="font-weight: 700">Car 02</span><span style="color: #B45F06; font-weight: 700">Parked 38 min</span></div>
+<div style="display: flex; height: 36px; border-radius: 10px; overflow: hidden; background: #F1F6FF">
+<div title="Parked 06:00 to 12:25" style="width: 53.5%; background: #F3C892"></div>
+<div title="Moving 12:25 to 12:58" style="width: 4.6%; background: {{accent}}"></div>
+<div title="No signal 12:58 to 13:04" style="width: 0.8%; box-sizing: border-box; border: 2px dashed #5A6B85"></div>
+<div title="Moving 13:04 to 13:40" style="width: 5%; background: {{accent}}"></div>
+<div title="Parked 13:40 to now" style="width: 5.3%; background: #F3C892"></div>
+</div>
+</div>
+
+<div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5A6B85"><span>06:00</span><span>09:00</span><span>12:00</span><span>15:00</span><span>18:00</span></div>
+</section>
+
+</div>
+
+<section aria-label="Recent trips" style="background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-size: 17px; font-weight: 700">Recent trips</h2>
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 760px; border-collapse: collapse; text-align: left">
+<thead>
+<tr style="color: #5A6B85; font-size: 12px">
+<th scope="col" style="padding: 10px 12px; font-weight: 600">Car</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 600">Route</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 600">Time</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 600; text-align: right">Distance</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 600; text-align: right">Driving</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 600; text-align: right">Stops</th>
+<th scope="col" style="padding: 10px 12px; font-weight: 600">Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr style="border-top: 1px solid #D5E2F7">
+<td style="padding: 14px 12px; font-weight: 700">Car 01</td>
+<td style="padding: 14px 12px">Town depot to Site</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace">13:20 – now</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">23 km</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">58 min</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">0</td>
+<td style="padding: 14px 12px; color: {{accent}}; font-weight: 700">In progress</td>
+</tr>
+<tr style="border-top: 1px solid #D5E2F7">
+<td style="padding: 14px 12px; font-weight: 700">Car 02</td>
+<td style="padding: 14px 12px">Supplier yard to Site</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace">12:25 – 13:40</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">38 km</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">1 h 15 min</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">0</td>
+<td style="padding: 14px 12px; color: #5A6B85">No signal for 6 min</td>
+</tr>
+<tr style="border-top: 1px solid #D5E2F7">
+<td style="padding: 14px 12px; font-weight: 700">Car 01</td>
+<td style="padding: 14px 12px">Site to Town depot</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace">07:42 – 09:05</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">41 km</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">1 h 12 min</td>
+<td style="padding: 14px 12px; font-family: 'JetBrains Mono', monospace; text-align: right">2</td>
+<td style="padding: 14px 12px; color: #5A6B85">Stopped 11 min in total</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1D6FE8","options":["#1D6FE8","#0E8FD6","#4B5BEA"]},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+renderVals() {
+return { accent: this.props.accent ?? '#1D6FE8' };
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+# Site Car Tracker - production stack (Docker Compose)
+#
+#   db       PostgreSQL, Traccar's database. Not reachable from outside Docker.
+#   traccar  Traccar GPS server. Receives tracker pings, serves /api.
+#   web      Caddy: serves the built React app and forwards /api (and the
+#            /api/socket websocket) to Traccar. Gets HTTPS certificates itself.
+#
+# Run from this folder:   docker compose up -d --build
+# Settings come from deploy/.env (copy .env.example and edit it).
+#
+# Two ways to expose the app (see README "Which proxy mode?"):
+#   A) default: this file, Caddy owns ports 80 and 443.
+#   B) another web server already uses 80/443:
+#        docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml up -d --build
+#
+# Facts this file relies on (checked on 2026-10-09 against):
+#   - https://www.traccar.org/docker/                 image traccar/traccar, tags 6.16.0-alpine etc.
+#   - https://www.traccar.org/configuration-file/     CONFIG_USE_ENVIRONMENT_VARIABLES, key -> ENV name rule
+#   - https://github.com/traccar/traccar (docker/compose/traccar-timescaledb.yaml, docker/Dockerfile.alpine,
+#     src/.../config/Config.java)                     official compose layout, health URL, entrypoint, env lookup
+#   - https://hub.docker.com/_/postgres               POSTGRES_* variables, data path for major 17
+#   - https://hub.docker.com/_/caddy                  /data must be persisted, 443/udp for HTTP/3
+# NOT run yet: no Docker was available when this was written. See README "Honest status".
+
+name: site-car-tracker
+
+# Keep container logs from filling the disk (Docker keeps them forever by default).
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+
+  # ---------------------------------------------------------------- database
+  db:
+    # Major version pinned on purpose: a PostgreSQL major upgrade needs a dump and restore.
+    # Mount point /var/lib/postgresql/data is right for 17 and older (18+ uses /var/lib/postgresql).
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: traccar
+      POSTGRES_USER: traccar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    # No "ports:" on purpose. Only containers on this Compose network can reach the database.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U traccar -d traccar"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    logging: *default-logging
+
+  # ----------------------------------------------------------------- traccar
+  traccar:
+    # Pinned to an exact release so an update is always a conscious change.
+    # "alpine" = small image. Upgrade: change TRACCAR_TAG in .env, then `docker compose pull && docker compose up -d`.
+    image: traccar/traccar:${TRACCAR_TAG:-6.16.0-alpine}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Official mechanism: with this set to "true", ENV variables override traccar.xml.
+      # Key name rule: dots become underscores, camelCase becomes SNAKE_CASE (database.url -> DATABASE_URL).
+      # Secrets come ONLY from deploy/.env through these variables; traccar.xml holds no secrets.
+      CONFIG_USE_ENVIRONMENT_VARIABLES: "true"
+      DATABASE_DRIVER: org.postgresql.Driver
+      DATABASE_URL: jdbc:postgresql://db:5432/traccar
+      DATABASE_USER: traccar
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in deploy/.env}
+      # JVM heap limit. The image starts `java` directly (no JAVA_OPTS script), so we use the
+      # standard JAVA_TOOL_OPTIONS variable that every JVM reads. 512 MB is plenty for 2 cars and
+      # leaves room for PostgreSQL and Caddy on a 2 GB VPS. Raise it only if logs show OutOfMemory.
+      # The image also runs with -XX:+ExitOnOutOfMemoryError, so "restart: unless-stopped" brings it back.
+      # Do NOT set TZ here: Traccar works in UTC internally and the app does the local-time display.
+      JAVA_TOOL_OPTIONS: ${JAVA_OPTS:--Xmx512m}
+    volumes:
+      # Non-secret settings (enabled protocols, logging, geocoder). Edit deploy/traccar.xml, then
+      # `docker compose restart traccar`.
+      - ./traccar.xml:/opt/traccar/conf/traccar.xml:ro
+      # Logs go to the console (logger.console in traccar.xml), so use `docker compose logs traccar`.
+      # The default H2 file database in /opt/traccar/data is not used (we use PostgreSQL).
+    mem_limit: ${TRACCAR_MEM_LIMIT:-1g}
+    ports:
+      # Admin web UI: this machine only. Reach it with an SSH tunnel (README step "First run").
+      # Do not change 127.0.0.1 to 0.0.0.0: the admin login would then be open to the internet.
+      - "127.0.0.1:8082:8082"
+
+      # --- Tracker ports ------------------------------------------------------------------
+      # Each BIND variable decides who can connect to that port:
+      #   0.0.0.0    anyone on the internet (what a tracker needs)
+      #   127.0.0.1  nobody from outside (the port is effectively closed)
+      # Default: only the phone-app test port is open. Open the others in deploy/.env when you
+      # choose a tracker. NOTE: Docker bypasses ufw, so these variables are the real switch.
+      - "${OSMAND_BIND:-0.0.0.0}:5055:5055"       # Traccar Client phone app (OsmAnd protocol, HTTP)
+      - "${GT06_BIND:-127.0.0.1}:5023:5023"       # GT06 family trackers (TCP)
+      - "${TELTONIKA_BIND:-127.0.0.1}:5027:5027"  # Teltonika trackers (TCP)
+      - "${QUECLINK_BIND:-127.0.0.1}:5004:5004"   # Queclink GL200/GV series (TCP)
+      # Some trackers send over UDP instead of TCP. If yours does, add the matching line, e.g.:
+      # - "${GT06_BIND:-127.0.0.1}:5023:5023/udp"
+    healthcheck:
+      # Same health URL the official Traccar compose file uses (busybox wget exists in the alpine image).
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8082/api/health"]
+      interval: 1m
+      timeout: 5s
+      retries: 3
+      start_period: 5m   # first start creates the database tables, which takes a while
+    logging: *default-logging
+
+  # --------------------------------------------------------------------- web
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+      # Vite writes these values into the JavaScript at BUILD time. Change them in .env,
+      # then rebuild: `docker compose up -d --build`.
+      args:
+        VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-traccar}
+        VITE_TIMEZONE: ${VITE_TIMEZONE:-Asia/Makassar}
+        VITE_SITE_GEOFENCE_NAME: ${VITE_SITE_GEOFENCE_NAME:-Site}
+    restart: unless-stopped
+    environment:
+      # Read by deploy/caddy/Caddyfile. A domain name = automatic HTTPS. ":80" = plain HTTP.
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS in deploy/.env (your domain, or :80 for a local test)}
+    ports:
+      - "80:80"        # also needed by Let's Encrypt to prove you own the domain
+      - "443:443"
+      - "443:443/udp"  # HTTP/3
+    volumes:
+      # The whole folder is mounted (not one file) so Caddy sees edits; Caddy docs advise this.
+      - ./caddy:/etc/caddy:ro
+      # /data holds the HTTPS certificates. Must persist, or Let's Encrypt rate limits can lock you out.
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      # Internal-only status page defined at the bottom of the Caddyfile (port 8081, not published).
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8081/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging: *default-logging
+
+volumes:
+  db_data:
+  caddy_data:
+  caddy_config:

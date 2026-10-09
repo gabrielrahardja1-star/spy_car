@@ -1,0 +1,25 @@
+# Override for MODE B: another reverse proxy (nginx, Traefik, Caddy, Apache ...) already owns
+# ports 80 and 443 on this server.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.existing-proxy.yml up -d --build
+#
+# What changes compared with docker-compose.yml:
+#   - The "web" container no longer publishes 80/443. It listens on plain HTTP only, on
+#     127.0.0.1:${APP_PORT:-8080}, so only a proxy ON THIS SERVER can reach it.
+#   - It does not ask for certificates (the site address is forced to ":80", which Caddy serves
+#     as plain HTTP). Your existing proxy terminates HTTPS and forwards to 127.0.0.1:APP_PORT.
+#   - /api and the websocket /api/socket still go through this container to Traccar, so your
+#     proxy only needs ONE upstream. README has ready nginx and Traefik/Caddy snippets.
+#
+# Needs Docker Compose 2.24 or newer for the "!override" tag (check: `docker compose version`).
+# On older versions you get a YAML error mentioning "!override".
+#
+# Reference: https://docs.docker.com/reference/compose-file/merge/  ("!override" replaces a list
+# instead of adding to it; without it the 80/443 ports from the base file would stay published).
+
+services:
+  web:
+    environment:
+      SITE_ADDRESS: ":80"
+    ports: !override
+      - "127.0.0.1:${APP_PORT:-8080}:80"

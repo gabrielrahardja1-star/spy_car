@@ -1,0 +1,226 @@
+/* Card */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 20px;
+}
+
+.cardSelected {
+  border-width: 2px;
+  padding: 19px;
+}
+
+/* Stat tile */
+.tile {
+  background: var(--raised);
+  border-radius: var(--radius-tile);
+  padding: 12px;
+  min-width: 0;
+}
+
+.tileLabel {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.tileValue {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Status pill */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
+  font-weight: 700;
+}
+
+.pillMoving {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+.pillParked {
+  background: var(--orange-tint);
+  color: var(--orange);
+}
+
+.pillNosignal {
+  background: var(--raised);
+  color: var(--muted);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+.dotRound {
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dotSquare {
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.dotDashed {
+  border-radius: 50%;
+  border: 2px dashed currentColor;
+}
+
+/* Segmented control */
+.segmented {
+  display: flex;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+.segmentedFill > button {
+  flex: 1;
+}
+
+.segment {
+  min-width: 52px;
+  min-height: var(--control-h);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.segmentActive {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+/* Buttons */
+.pillButton {
+  min-height: 52px;
+  padding: 0 18px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.iconButton {
+  width: var(--control-h);
+  height: var(--control-h);
+  border: 0;
+  border-radius: var(--radius-tile);
+  background: var(--raised);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconButton:disabled {
+  color: var(--slate);
+  opacity: 0.55;
+}
+
+.iconButtonRound {
+  border-radius: 50%;
+  background: transparent;
+  font-size: 20px;
+}
+
+/* Floating map overlays */
+.floating {
+  position: absolute;
+}
+
+.legend {
+  top: 16px;
+  right: 16px;
+  width: 220px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.legendTitle {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.swatchRing {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 3px solid currentColor;
+}
+
+.swatchDashedRing {
+  border-style: dashed;
+}
+
+.swatchTrail {
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--blue);
+}
+
+.swatchZone {
+  width: 16px;
+  height: 10px;
+  border: 2px dashed var(--orange);
+}
+
+.zoomGroup {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+}
+
+/* Stat tile emphasis (used for "Last seen" on a car with no signal) */
+.tileEmphasis {
+  border: 2px dashed var(--muted);
+  padding: 10px;
+}
+
+.tileEmphasis .tileValue {
+  font-weight: 700;
+}
+
+/* Loading / error / empty text blocks */
+.notice {
+  padding: 16px;
+  border-radius: var(--radius-tile);
+  background: var(--raised);
+  color: var(--muted);
+}
+
+.noticeError {
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-weight: 600;
+}

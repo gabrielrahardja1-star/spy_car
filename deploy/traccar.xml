@@ -1,0 +1,97 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<!--
+  Traccar configuration for the Site Car Tracker. Mounted read-only at /opt/traccar/conf/traccar.xml.
+  Edit, then apply with:  docker compose restart traccar
+
+  How settings reach Traccar (verified 2026-10-09):
+    - docker-compose.yml sets CONFIG_USE_ENVIRONMENT_VARIABLES=true. Traccar then reads each key from
+      an environment variable FIRST (database.url -> DATABASE_URL) and falls back to this file.
+      Source: https://www.traccar.org/configuration-file/ and Config.java in https://github.com/traccar/traccar
+      (an environment variable that is empty counts as "not set").
+    - The database password and the other database settings come from the environment, so no
+      secret is stored in this file. The database entries below are only the same values as a
+      fallback. NEVER type the real password here.
+    - Keys not listed here use Traccar's built-in defaults.
+  Full key list: https://www.traccar.org/configuration-file/
+  Image/Docker notes: https://www.traccar.org/docker/ (Traccar 6.16.0 when this was written)
+-->
+<properties>
+
+    <!-- ===== Database (PostgreSQL in the "db" container) ============================== -->
+    <entry key='database.driver'>org.postgresql.Driver</entry>
+    <entry key='database.url'>jdbc:postgresql://db:5432/traccar</entry>
+    <entry key='database.user'>traccar</entry>
+    <!-- Overridden by DATABASE_PASSWORD from deploy/.env. Leave this placeholder as it is. -->
+    <entry key='database.password'>CHANGE_ME_set_in_env_file</entry>
+
+    <!-- Do not keep the raw bytes of every message (saves space; turn on only to debug a tracker). -->
+    <entry key='database.saveOriginal'>false</entry>
+
+    <!-- ===== Web server ================================================================ -->
+    <!-- Inside the container. docker-compose.yml publishes it on 127.0.0.1 only. -->
+    <entry key='web.port'>8082</entry>
+
+    <!-- ===== Logging ==================================================================== -->
+    <!-- Log to the console so `docker compose logs traccar` works (Docker rotates the logs). -->
+    <entry key='logger.console'>true</entry>
+    <!-- Use 'fine' or 'all' temporarily when a tracker connects but no position appears. -->
+    <entry key='logger.level'>info</entry>
+
+    <!-- ===== Tracker protocols ========================================================== -->
+    <!-- Traccar can listen for a very large number of protocols, each on its own port INSIDE the container. -->
+    <!-- This list switches on only the ones we use (saves memory and attack surface).     -->
+    <!-- Names are separated by commas, no spaces. Without this line "all protocols that   -->
+    <!-- have port numbers" are enabled (docs: protocols.enable).                           -->
+    <!--   osmand     Traccar Client phone app (test)                                       -->
+    <!--   gt06       GT06 family trackers                                                  -->
+    <!--   teltonika  Teltonika trackers                                                    -->
+    <!--   gl200      Queclink GL/GV series trackers                                        -->
+    <!-- If your tracker uses another protocol, add its name (traccar.org/devices) and the -->
+    <!-- matching published port in docker-compose.yml. Being enabled here does NOT make a -->
+    <!-- port reachable: only the ports published in docker-compose.yml are (and the BIND -->
+    <!-- variables in .env decide who may connect to them).                                -->
+    <entry key='protocols.enable'>osmand,gt06,teltonika,gl200</entry>
+    <entry key='osmand.port'>5055</entry>
+    <entry key='gt06.port'>5023</entry>
+    <entry key='teltonika.port'>5027</entry>
+    <entry key='gl200.port'>5004</entry>
+
+    <!-- ===== Registration ================================================================ -->
+    <!-- There is no config-file key for self-registration. It is a SERVER SETTING stored in -->
+    <!-- the database (Settings > Server > "Registration" checkbox in the admin UI).         -->
+    <!-- The very first user ever created becomes the administrator; after that, new users   -->
+    <!-- can register only while that checkbox is on (UserResource.java).                    -->
+    <!-- Required step after creating the admin: untick it (see README, "First run").        -->
+    <!-- Defence in depth: the public Caddy address rejects every write except login/logout,  -->
+    <!-- so strangers cannot register through the domain either way.                         -->
+
+    <!-- ===== Reverse geocoding (address lookup) ========================================== -->
+    <!-- OFF. The app labels places with geofences ("Site", "Town depot"), not street         -->
+    <!-- addresses. Reports would otherwise call an outside service for every position.      -->
+    <!-- To turn on later, replace the line below and read https://www.traccar.org/configuration-file/ -->
+    <!-- (geocoder.type, geocoder.url, geocoder.key ...). The public Nominatim server allows   -->
+    <!-- about one request per second and forbids heavy use: low volume only.                -->
+    <!--   <entry key='geocoder.enable'>true</entry>                                          -->
+    <!--   <entry key='geocoder.type'>nominatim</entry>                                       -->
+    <!--   <entry key='geocoder.url'>https://nominatim.openstreetmap.org/reverse</entry>      -->
+    <!--   <entry key='geocoder.onRequest'>true</entry>                                       -->
+    <entry key='geocoder.enable'>false</entry>
+
+    <!-- ===== Trips and stops (report tuning) ============================================== -->
+    <!-- Defaults are kept: report.trip.minimalParkingDuration = 300 s (a stop shorter than   -->
+    <!-- 5 minutes does not split a trip), minimalTripDistance = 500 m, minimalTripDuration = -->
+    <!-- 300 s. Change only after looking at real trips. Per-device overrides are also        -->
+    <!-- possible as device attributes. Docs: https://www.traccar.org/configuration-file/     -->
+    <!--   <entry key='report.trip.minimalParkingDuration'>300</entry>                        -->
+
+    <!-- ===== Data retention ================================================================ -->
+    <!-- Nothing is deleted automatically. No automatic history purge key was found in the   -->
+    <!-- configuration page when this was written, so how long to keep history is an open     -->
+    <!-- decision (README, "Open items"). Watch the disk (`df -h`) and back up regularly.     -->
+
+    <!-- ===== Time zone ====================================================================== -->
+    <!-- Traccar stores UTC. The app converts to Asia/Makassar for display (VITE_TIMEZONE).   -->
+    <!-- Only a tracker that sends LOCAL time instead of UTC needs: decoder.timezone.         -->
+
+</properties>

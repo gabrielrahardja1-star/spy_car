@@ -1,0 +1,57 @@
+:root {
+  /* Surfaces */
+  --bg: #e6f0ff;
+  --card: #ffffff;
+  --raised: #f1f6ff;
+  --line: #d5e2f7;
+
+  /* Text */
+  --ink: #0e1320;
+  --muted: #5a6b85;
+
+  /* Blue family: moving, trail, primary */
+  --blue: #1d6fe8;
+  --blue-deep: #1250bf;
+  --blue-tint: #e1edff;
+  --blue-light: #a9cbff;
+
+  /* Orange family: parked, stops, site zone */
+  --orange: #b45f06;
+  --orange-tint: #fff1e0;
+  --orange-light: #f3c892;
+
+  --car-red: #e24a2b;
+  --slate: #5b6786;
+
+  /* Map (PLAN.md 2.2) */
+  --map-ground: #dfe9f8;
+  --map-ground-ring: #c9d8ee;
+  --map-road: #f7faff;
+  --map-roof: #ffffff;
+  --map-roof-alt: #f3f7fd;
+  --map-wall: #d6e0f0;
+  --map-wall-dark: #bcc9df;
+  --map-wall-alt: #c9d5e8;
+  --map-wall-alt-dark: #b0bed6;
+  --map-hl-roof: #9cc4ff;
+  --map-hl-wall: #5e9bf5;
+  --map-hl-wall-dark: #3f7fe0;
+  --map-trail-ahead: #7c89ab;
+
+  /* Shape */
+  --radius-card: 24px;
+  --radius-panel: 20px;
+  --radius-tile: 14px;
+  --radius-pill: 999px;
+
+  /* Type */
+  --font-sans: 'Montserrat', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --fs-title: 28px;
+  --fs-card-title: 17px;
+  --fs-big: 34px;
+  --fs-body: 14px;
+  --fs-small: 12px;
+
+  --control-h: 44px;
+}

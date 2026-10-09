@@ -1,0 +1,106 @@
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * Trip markers and the car callout are maplibre Marker elements (.marker, .start, .end, .stop, .carMarker).
+ * No `position` on any of them: maplibre makes markers absolutely positioned, and overriding that stacks them
+ * in the page flow. Their children can be absolute, because a marker is a positioned box.
+ */
+.marker {
+  box-sizing: border-box;
+  border: 3px solid var(--map-ground);
+  pointer-events: none;
+}
+
+.start,
+.end {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+.start {
+  background: var(--blue);
+}
+
+.end {
+  background: var(--ink);
+}
+
+.stop {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--orange);
+}
+
+.pill {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 5px 14px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Offsets are from the marker's padding box, so 8px here is a 5px gap past its 3px border. */
+.pillRight {
+  left: calc(100% + 8px);
+}
+
+.pillLeft {
+  right: calc(100% + 8px);
+}
+
+/* The car at the playback position. Its box is a point; the callout sits to the right of it. */
+.carMarker {
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.carFlat {
+  position: absolute;
+  left: -9px;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  border: 3px solid var(--card);
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 1px 4px rgb(14 19 32 / 35%);
+}
+
+.carCallout {
+  position: absolute;
+  left: 30px;
+  top: -34px;
+  box-sizing: border-box;
+  min-width: 170px;
+  padding: 8px 16px 9px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.carTitle {
+  font-size: var(--fs-body);
+  font-weight: 700;
+}
+
+.carDetail {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-small);
+}

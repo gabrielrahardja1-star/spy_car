@@ -1,0 +1,2 @@
+# Database dumps contain all position history. Never commit them.
+backups/

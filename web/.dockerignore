@@ -1,0 +1,21 @@
+# Keep the Docker build context small and free of local files.
+node_modules
+dist
+dist-ssr
+.git
+.gitignore
+.vscode
+.idea
+.DS_Store
+npm-debug.log*
+*.log
+*.local
+
+# Real settings never go into an image (the example file is harmless but not needed).
+.env
+.env.*
+
+# Not needed to build
+Dockerfile
+.dockerignore
+README.md

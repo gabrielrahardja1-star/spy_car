@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Route history</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+body{margin:0;background:#E6F0FF}
+a{color:inherit;text-decoration:none}a:hover{color:#0E1320}
+</style>
+</helmet>
+<div style="min-height: 100vh; box-sizing: border-box; display: flex; flex-direction: column; background: #E6F0FF; color: #0E1320; font-family: 'Montserrat', system-ui, sans-serif; font-size: 14px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 24px">
+<div style="display: flex; align-items: center; gap: 12px; margin-right: auto">
+<div style="width: 44px; height: 44px; border-radius: 14px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6F0FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+</div>
+<div>
+<div style="font-weight: 700; font-size: 16px">Site Car Tracker</div>
+<div style="color: #5A6B85; font-size: 12px">Purchasing · 2 cars</div>
+</div>
+</div>
+<nav aria-label="Views" style="display: flex; gap: 4px; padding: 4px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 999px">
+<a href="Main.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; color: #5A6B85; font-weight: 600">Live map</a>
+<a href="History.dc.html" aria-current="page" style="display: flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; background: #0E1320; color: #E6F0FF; font-weight: 600">Route history</a>
+<a href="Dashboard.dc.html" style="display: flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; color: #5A6B85; font-weight: 600">Dashboard</a>
+</nav>
+<div style="display: flex; align-items: center; gap: 12px; margin-left: auto">
+<div style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 16px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 999px">
+<span style="width: 8px; height: 8px; border-radius: 50%; background: {{accent}}"></span>
+<span style="font-weight: 600">Live</span>
+<span style="color: #5A6B85; font-family: 'JetBrains Mono', monospace; font-size: 12px">updated 4 s ago</span>
+</div>
+</div>
+</header>
+
+<main style="flex: 1; display: flex; flex-wrap: wrap; gap: 16px; padding: 0 24px 24px">
+
+<section aria-label="Trips" style="flex: 1 1 340px; max-width: 420px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+<h1 style="margin: 0; padding: 8px 4px 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px">Route history</h1>
+
+<div style="display: flex; padding: 4px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 999px">
+<button type="button" aria-pressed="true" style="flex: 1; min-height: 44px; border: 0; border-radius: 999px; background: #0E1320; color: #E6F0FF; font: inherit; font-weight: 700; cursor: pointer">Car 01</button>
+<button type="button" aria-pressed="false" style="flex: 1; min-height: 44px; border: 0; border-radius: 999px; background: transparent; color: #5A6B85; font: inherit; font-weight: 700; cursor: pointer">Car 02</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 20px; padding: 8px">
+<button type="button" aria-label="Previous day" style="width: 44px; height: 44px; border: 0; border-radius: 14px; background: #F1F6FF; color: #0E1320; cursor: pointer; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+</button>
+<div style="flex: 1; text-align: center">
+<div style="font-weight: 700; font-size: 16px">Thu 8 Oct 2026</div>
+<div style="color: #5A6B85; font-size: 12px">2 trips · 64 km · 2 h 10 min driving</div>
+</div>
+<button type="button" aria-label="Next day" disabled style="width: 44px; height: 44px; border: 0; border-radius: 14px; background: #F1F6FF; color: #5B6786; display: flex; align-items: center; justify-content: center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</button>
+</div>
+
+<button type="button" onClick="{{pick1}}" style="box-sizing: border-box; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; background: #FFFFFF; border: 2px solid {{t1Border}}; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="font-size: 17px; font-weight: 700">Site to Town depot</div>
+<div style="font-family: 'JetBrains Mono', monospace; color: #5A6B85">07:42 – 09:05</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<div style="background: #F1F6FF; border-radius: 14px; padding: 12px">
+<div style="color: #5A6B85; font-size: 12px">Distance</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500">41 km</div>
+</div>
+<div style="background: #F1F6FF; border-radius: 14px; padding: 12px">
+<div style="color: #5A6B85; font-size: 12px">Driving</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500">1 h 12 min</div>
+</div>
+<div style="background: #F1F6FF; border-radius: 14px; padding: 12px">
+<div style="color: #5A6B85; font-size: 12px">Stops</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500">2 · 11 min</div>
+</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #D5E2F7; padding-top: 14px">
+<div style="display: flex; align-items: center; gap: 12px"><span style="width: 10px; height: 10px; border-radius: 50%; background: {{accent}}"></span><span style="font-family: 'JetBrains Mono', monospace; color: #5A6B85; width: 44px">07:42</span>Left Site zone</div>
+<div style="display: flex; align-items: center; gap: 12px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #B45F06"></span><span style="font-family: 'JetBrains Mono', monospace; color: #5A6B85; width: 44px">07:58</span>Stopped 3 min</div>
+<div style="display: flex; align-items: center; gap: 12px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #B45F06"></span><span style="font-family: 'JetBrains Mono', monospace; color: #5A6B85; width: 44px">08:36</span>Stopped 8 min</div>
+<div style="display: flex; align-items: center; gap: 12px"><span style="width: 10px; height: 10px; border-radius: 50%; background: #0E1320"></span><span style="font-family: 'JetBrains Mono', monospace; color: #5A6B85; width: 44px">09:05</span>Arrived Town depot</div>
+</div>
+</button>
+
+<button type="button" onClick="{{pick2}}" style="box-sizing: border-box; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; background: #FFFFFF; border: 2px solid {{t2Border}}; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="font-size: 17px; font-weight: 700">Town depot to Site</div>
+<div style="font-family: 'JetBrains Mono', monospace; color: #5A6B85">13:20 – now</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; color: {{accent}}; font-weight: 700"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{accent}}"></span>In progress · 23 km so far</div>
+</button>
+</section>
+
+<section aria-label="Route map" style="flex: 999 1 560px; min-width: 0; min-height: 640px; position: relative; border-radius: 24px; overflow: hidden; background: #DFE9F8; border: 1px solid #D5E2F7">
+<svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" role="img" aria-label="3D map of the 07:42 trip from the site to the town depot, with two stops and the playback position" style="position: absolute; inset: 0; width: 100%; height: 100%">
+<rect width="1200" height="800" fill="#DFE9F8"/>
+<g fill="none" stroke="#C9D8EE" stroke-width="2">
+<ellipse cx="190" cy="600" rx="170" ry="92"/><ellipse cx="190" cy="596" rx="120" ry="64"/><ellipse cx="190" cy="592" rx="70" ry="36"/>
+<ellipse cx="1090" cy="700" rx="150" ry="80"/><ellipse cx="1090" cy="696" rx="96" ry="50"/>
+</g>
+<polygon points="698.6,497.9 953.6,640.4 668,800 413,657.5" fill="#B45F06" fill-opacity="0.06" stroke="#B45F06" stroke-opacity="0.7" stroke-width="2" stroke-dasharray="8 8"/>
+<text x="800" y="712" fill="#B45F06" font-size="13" font-weight="700" letter-spacing="2">SITE ZONE</text>
+<g stroke="#F7FAFF" stroke-width="18" stroke-linecap="round">
+<line x1="192" y1="40" x2="1144" y2="572"/><line x1="56" y1="116" x2="668" y2="458"/><line x1="906" y1="59" x2="294" y2="401"/><line x1="1144" y1="192" x2="532" y2="534"/><line x1="226" y1="363" x2="940" y2="762"/><line x1="668" y1="610" x2="396" y2="762"/>
+</g>
+<polyline points="668,610 532,534 668,458" fill="none" stroke="{{accent}}" stroke-opacity="0.25" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="668,610 532,534 668,458" fill="none" stroke="{{accent}}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<polyline points="668,458 804,382 566,249" fill="none" stroke="#7C89AB" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 12"/>
+<polygon points="328,38 430,95 430,135 328,78" fill="#C9D5E8"/><polygon points="498,57 430,95 430,135 498,97" fill="#B0BED6"/><polygon points="396,0 498,57 430,95 328,38" fill="#F3F7FD"/>
+<polygon points="464,94 566,151 566,211 464,154" fill="#D6E0F0"/><polygon points="702,75 566,151 566,211 702,135" fill="#BCC9DF"/><polygon points="600,18 702,75 566,151 464,94" fill="#FFFFFF"/>
+<polygon points="158,181 239.6,226.6 239.6,256.6 158,211" fill="#D6E0F0"/><polygon points="341.6,169.6 239.6,226.6 239.6,256.6 341.6,199.6" fill="#BCC9DF"/><polygon points="260,124 341.6,169.6 239.6,226.6 158,181" fill="#FFFFFF"/>
+<polygon points="702,121 787,168.5 787,258.5 702,211" fill="#D6E0F0"/><polygon points="855,130.5 787,168.5 787,258.5 855,220.5" fill="#BCC9DF"/><polygon points="770,83 855,130.5 787,168.5 702,121" fill="#FFFFFF"/>
+<polygon points="314.4,192.6 423.2,253.4 423.2,298.4 314.4,237.6" fill="#D6E0F0"/><polygon points="504.8,207.8 423.2,253.4 423.2,298.4 504.8,252.8" fill="#BCC9DF"/><polygon points="396,147 504.8,207.8 423.2,253.4 314.4,192.6" fill="#FFFFFF"/>
+<polygon points="617,228.5 702,276 702,306 617,258.5" fill="#D6E0F0"/><polygon points="770,238 702,276 702,306 770,268" fill="#BCC9DF"/><polygon points="685,190.5 770,238 702,276 617,228.5" fill="#FFFFFF"/>
+<polygon points="736,266 821,313.5 821,353.5 736,306" fill="#C9D5E8"/><polygon points="957,237.5 821,313.5 821,353.5 957,277.5" fill="#B0BED6"/><polygon points="872,190 957,237.5 821,313.5 736,266" fill="#F3F7FD"/>
+<polygon points="181.8,286.7 283.8,343.7 283.8,368.7 181.8,311.7" fill="#C9D5E8"/><polygon points="368.8,296.2 283.8,343.7 283.8,368.7 368.8,321.2" fill="#B0BED6"/><polygon points="266.8,239.2 368.8,296.2 283.8,343.7 181.8,286.7" fill="#F3F7FD"/>
+<polygon points="484.4,222.6 566,268.2 566,378.2 484.4,332.6" fill="#5E9BF5"/><polygon points="647.6,222.6 566,268.2 566,378.2 647.6,332.6" fill="#3F7FE0"/><polygon points="566,177 647.6,222.6 566,268.2 484.4,222.6" fill="#9CC4FF"/>
+<polygon points="586.4,334.6 668,380.2 668,435.2 586.4,389.6" fill="#D6E0F0"/><polygon points="749.6,334.6 668,380.2 668,435.2 749.6,389.6" fill="#BCC9DF"/><polygon points="668,289 749.6,334.6 668,380.2 586.4,334.6" fill="#FFFFFF"/>
+<polygon points="872,347 974,404 974,439 872,382" fill="#C9D5E8"/><polygon points="1110,328 974,404 974,439 1110,363" fill="#B0BED6"/><polygon points="1008,271 1110,328 974,404 872,347" fill="#F3F7FD"/>
+<polygon points="90,381 158,419 158,439 90,401" fill="#C9D5E8"/><polygon points="226,381 158,419 158,439 226,401" fill="#B0BED6"/><polygon points="158,343 226,381 158,419 90,381" fill="#F3F7FD"/>
+<polygon points="355.2,369.8 430,411.6 430,446.6 355.2,404.8" fill="#D6E0F0"/><polygon points="511.6,366 430,411.6 430,446.6 511.6,401" fill="#BCC9DF"/><polygon points="436.8,324.2 511.6,366 430,411.6 355.2,369.8" fill="#FFFFFF"/>
+<polygon points="736,438 821,485.5 821,505.5 736,458" fill="#D6E0F0"/><polygon points="889,447.5 821,485.5 821,505.5 889,467.5" fill="#BCC9DF"/><polygon points="804,400 889,447.5 821,485.5 736,438" fill="#FFFFFF"/>
+<polygon points="1008,408 1093,455.5 1093,505.5 1008,458" fill="#D6E0F0"/><polygon points="1195,398.5 1093,455.5 1093,505.5 1195,448.5" fill="#BCC9DF"/><polygon points="1110,351 1195,398.5 1093,455.5 1008,408" fill="#FFFFFF"/>
+<polygon points="736,592 804,630 804,648 736,610" fill="#D6E0F0"/><polygon points="872,592 804,630 804,648 872,610" fill="#BCC9DF"/><polygon points="804,554 872,592 804,630 736,592" fill="#FFFFFF"/>
+<polygon points="498,615 552.4,645.4 552.4,659.4 498,629" fill="#C9D5E8"/><polygon points="606.8,615 552.4,645.4 552.4,659.4 606.8,629" fill="#B0BED6"/><polygon points="552.4,584.6 606.8,615 552.4,645.4 498,615" fill="#F3F7FD"/>
+<polygon points="583,648.5 685,705.5 685,733.5 583,676.5" fill="#5E9BF5"/><polygon points="753,667.5 685,705.5 685,733.5 753,695.5" fill="#3F7FE0"/><polygon points="651,610.5 753,667.5 685,705.5 583,648.5" fill="#9CC4FF"/>
+<polyline points="668,458 804,382 566,249" fill="none" stroke="#7C89AB" stroke-opacity="0.6" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 12"/>
+<circle cx="668" cy="610" r="8" fill="{{accent}}" stroke="#DFE9F8" stroke-width="3"/>
+<g>
+<rect x="692" y="596" width="112" height="30" rx="15" fill="#FFFFFF" stroke="#D5E2F7"/>
+<text x="748" y="616" text-anchor="middle" fill="#0E1320" font-size="13" font-weight="600">Start 07:42</text>
+</g>
+<rect x="575" y="497.5" width="16" height="16" rx="4" fill="#B45F06" stroke="#DFE9F8" stroke-width="3"/>
+<g>
+<rect x="438" y="490" width="124" height="30" rx="15" fill="#FFFFFF" stroke="#D5E2F7"/>
+<text x="500" y="510" text-anchor="middle" fill="#0E1320" font-size="13" font-weight="600">Stop · 3 min</text>
+</g>
+<rect x="677" y="307.5" width="16" height="16" rx="4" fill="#B45F06" stroke="#DFE9F8" stroke-width="3"/>
+<g>
+<rect x="706" y="300" width="124" height="30" rx="15" fill="#FFFFFF" stroke="#D5E2F7"/>
+<text x="768" y="320" text-anchor="middle" fill="#0E1320" font-size="13" font-weight="600">Stop · 8 min</text>
+</g>
+<circle cx="566" cy="249" r="8" fill="#0E1320" stroke="#DFE9F8" stroke-width="3"/>
+<g>
+<rect x="398" y="200" width="144" height="30" rx="15" fill="#FFFFFF" stroke="#D5E2F7"/>
+<text x="470" y="220" text-anchor="middle" fill="#0E1320" font-size="13" font-weight="600">Town depot 09:05</text>
+</g>
+<polygon points="623.8,462.5 651,477.7 651,482.7 623.8,467.5" fill="#161920"/><polygon points="712.2,443.5 651,477.7 651,482.7 712.2,448.5" fill="#101319"/><polygon points="685,428.3 712.2,443.5 651,477.7 623.8,462.5" fill="#22262F"/>
+<polygon points="623.8,454.5 651,469.7 651,478.7 623.8,463.5" fill="#E24A2B"/><polygon points="712.2,435.5 651,469.7 651,478.7 712.2,444.5" fill="#B5351B"/><polygon points="685,420.3 712.2,435.5 651,469.7 623.8,454.5" fill="#FF7A5C"/>
+<polygon points="641.8,439.5 663.6,451.6 663.6,459.6 641.8,447.5" fill="#C5CCDD"/><polygon points="695.9,433.6 663.6,451.6 663.6,459.6 695.9,441.6" fill="#9AA3B8"/><polygon points="674.1,421.4 695.9,433.6 663.6,451.6 641.8,439.5" fill="#F4F6FB"/>
+<g>
+<rect x="722" y="430" width="170" height="52" rx="16" fill="#FFFFFF" stroke="#D5E2F7"/>
+<text x="738" y="452" fill="#0E1320" font-size="14" font-weight="700">Car 01 at 08:14</text>
+<text x="738" y="471" fill="#5A6B85" font-size="12" font-family="'JetBrains Mono', monospace">47 km/h · 16 km in</text>
+</g>
+</svg>
+
+<div style="position: absolute; left: 16px; right: 16px; bottom: 16px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; background: #FFFFFF; border: 1px solid #D5E2F7; border-radius: 24px; padding: 12px 16px">
+<button type="button" aria-label="Play route" style="width: 52px; height: 52px; border: 0; border-radius: 50%; background: {{accent}}; color: #E6F0FF; cursor: pointer; display: flex; align-items: center; justify-content: center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>
+</button>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 500">08:14</div>
+<div style="flex: 1 1 280px; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<div style="position: relative; height: 20px">
+<div style="position: absolute; left: 0; right: 0; top: 7px; height: 6px; border-radius: 3px; background: #D5E2F7"></div>
+<div style="position: absolute; left: 0; width: 38.5%; top: 7px; height: 6px; border-radius: 3px; background: {{accent}}"></div>
+<div style="position: absolute; left: 19.3%; top: 4px; width: 12px; height: 12px; margin-left: -6px; border-radius: 3px; background: #B45F06"></div>
+<div style="position: absolute; left: 65%; top: 4px; width: 12px; height: 12px; margin-left: -6px; border-radius: 3px; background: #B45F06"></div>
+<div style="position: absolute; left: 38.5%; top: 0; width: 20px; height: 20px; margin-left: -10px; box-sizing: border-box; border-radius: 50%; background: #0E1320; border: 4px solid {{accent}}"></div>
+</div>
+<div style="display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #5A6B85"><span>07:42</span><span>09:05</span></div>
+</div>
+<button type="button" aria-label="Playback speed, 4 times" style="min-width: 52px; min-height: 44px; border: 1px solid #D5E2F7; border-radius: 999px; background: #F1F6FF; color: #0E1320; font: inherit; font-weight: 700; cursor: pointer">4×</button>
+</div>
+</section>
+
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#1D6FE8","options":["#1D6FE8","#0E8FD6","#4B5BEA"]},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const accent = this.props.accent ?? '#1D6FE8';
+const sel = (this.state && this.state.sel) || 't1';
+return {
+accent,
+t1Border: sel === 't1' ? accent : '#D5E2F7',
+t2Border: sel === 't2' ? accent : '#D5E2F7',
+pick1: () => this.setState({ sel: 't1' }),
+pick2: () => this.setState({ sel: 't2' })
+};
+}
+}
+</script>
+</body>
+</html>

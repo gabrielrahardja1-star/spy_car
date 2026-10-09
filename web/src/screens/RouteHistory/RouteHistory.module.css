@@ -1,0 +1,196 @@
+.dayPicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: 8px;
+}
+
+.dayText {
+  flex: 1;
+  text-align: center;
+}
+
+.dayLabel {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.daySummary {
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.trip {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Select the trip. Padding matches the card's: 20px, or 19px inside the selected card's thicker border. */
+.tripButton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  padding: 20px;
+  border: 0;
+  background: none;
+  text-align: left;
+  border-radius: var(--radius-card);
+}
+
+.tripButtonSelected {
+  padding: 19px;
+}
+
+.tripButtonOpen {
+  padding-bottom: 14px;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 19px 19px;
+}
+
+.tripHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tripTitle {
+  font-size: var(--fs-card-title);
+  font-weight: 700;
+}
+
+.tripTime {
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.tripAddress {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+/* A timeline row is a button that jumps the replay to that time. */
+.event {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-tile);
+  background: none;
+  text-align: left;
+}
+
+.event:enabled:hover {
+  background: var(--raised);
+}
+
+.eventTime {
+  font-family: var(--font-mono);
+  color: var(--muted);
+  width: 44px;
+}
+
+.marker {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  background: currentColor;
+}
+
+.markerRound {
+  border-radius: 50%;
+}
+
+.markerSquare {
+  border-radius: 2px;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.progressDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Over the map: a notice at the top, the map controls and the playback bar stacked along the bottom. */
+.mapNotice {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 32px);
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+.overlays {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.overlays > * {
+  pointer-events: auto;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.controls > * {
+  pointer-events: auto;
+}
