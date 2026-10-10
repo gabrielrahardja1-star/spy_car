@@ -6,10 +6,11 @@ GPS trackers in the cars report to a Traccar server (open source), and this app 
 
 The full plan and the approved design are in [`Claude Plan/`](Claude%20Plan/PLAN.md).
 
-> **Honest status.** The app runs and is tested in mock mode on a laptop. The server setup in
-> `deploy/` has **not yet been run against a live server**: it was written and checked against the official
-> docs, and the proxy rules were tested locally, but nobody has started the containers yet. Read
-> ["First things to check"](#first-things-to-check-on-the-first-real-run) before you trust it.
+> **Honest status (10 Oct 2026).** The app is tested in mock mode on a laptop, and the server setup in `deploy/`
+> **has now run on a real VPS** (Mode B, behind an existing nginx and Cloudflare). A fake car sent to the server
+> appears and moves on the live map. Not yet seen on live data: Route history, the Dashboard, the read-only viewer
+> account, the phone app and a real tracker. See [`docs/STATUS.md`](docs/STATUS.md) for the details and
+> ["First things to check"](#first-things-to-check-on-the-first-real-run) for what is ticked off.
 
 ---
 
@@ -18,14 +19,15 @@ The full plan and the approved design are in [`Claude Plan/`](Claude%20Plan/PLAN
 1. [Quick start in mock mode](#quick-start-in-mock-mode)
 2. [Project layout](#project-layout)
 3. [Deploy on the company VPS](#deploy-on-the-company-vps)
-4. [Test with the Traccar Client phone app](#test-with-the-traccar-client-phone-app)
-5. [Adding a real tracker](#adding-a-real-tracker)
-6. [Updating](#updating)
-7. [Backups and restore](#backups-and-restore)
-8. [Firewall](#firewall)
-9. [Troubleshooting](#troubleshooting)
-10. [Security notes](#security-notes)
-11. [Open items](#open-items)
+4. [Test with a fake car (no phone, no tracker)](#test-with-a-fake-car-no-phone-no-tracker)
+5. [Test with the Traccar Client phone app](#test-with-the-traccar-client-phone-app)
+6. [Adding a real tracker](#adding-a-real-tracker)
+7. [Updating](#updating)
+8. [Backups and restore](#backups-and-restore)
+9. [Firewall](#firewall)
+10. [Troubleshooting](#troubleshooting)
+11. [Security notes](#security-notes)
+12. [Open items](#open-items)
 
 ---
 
@@ -62,6 +64,7 @@ Traccar itself always stores UTC.
 ├── Claude Plan/           the build plan and the three design mockups
 ├── web/                   the React + Vite app
 │   ├── src/               app code (screens, map, data modules for mock and Traccar)
+│   ├── dev/               local fake Traccar server and the car simulator
 │   ├── public/models/     the 3D car models (CC0, see the README inside)
 │   └── Dockerfile         builds the app and packages it with Caddy
 └── deploy/                everything for the server
@@ -301,6 +304,51 @@ networks:
 
 Traefik proxies WebSockets without extra settings.
 
+**Cloudflare in front of nginx** (what the first real deployment uses, verified 10 Oct 2026)
+
+- Put the nginx server block in its **own file** (for example `/etc/nginx/conf.d/tracker.conf`) so it can be added or removed
+  without touching other sites. Use the nginx snippet above, with `proxy_pass http://127.0.0.1:8081` if you set `APP_PORT=8081`.
+  Always run `nginx -t` before `systemctl reload nginx`. A broken file in `conf.d` can stop nginx from starting at all.
+- If the other sites already use a Cloudflare Origin CA certificate for `*.yourdomain`, reuse it. It is only trusted by Cloudflare,
+  so the DNS record must be **proxied** (orange cloud) and Cloudflare's SSL mode must be **Full (strict)**.
+- The proxied name carries web traffic only. **Trackers and the phone app must connect to the server's IP address and port**
+  (or to a second, DNS-only name), never to the proxied name.
+- Test the nginx block on the server before DNS exists:
+  `curl -sk --resolve tracker.example.com:443:127.0.0.1 https://tracker.example.com/api/server` (run it **on the server**; `-k` is needed because the origin certificate is only trusted by Cloudflare).
+- Do not paste long multi-line commands (heredocs) into an SSH terminal: a split paste once wrote a half-finished config file.
+  Copy the file with `scp` instead.
+
+---
+
+## Test with a fake car (no phone, no tracker)
+
+`web/dev/simulate-car.mjs` sends made-up positions to Traccar the way a tracker would (OsmAnd protocol, port 5055). The car
+follows **real roads**: the script asks the free public OSRM routing service for a driving route from a start point to a
+turning point and back. It first fills the last hour (park, drive out, park, drive back, park, so Route history has two trips),
+then keeps driving live until you press Ctrl+C. The computer running it needs internet access.
+
+1. In the Traccar admin screen (SSH tunnel), add a throw-away device: name `Test Car`, **Identifier** `sim-3` (any value, but it must match exactly).
+   Link it to the account you sign in with (Settings > Users > Connections).
+2. From your own computer, in `web/`:
+
+   ```sh
+   npm run simulate-car -- --host tracker-server-ip --id sim-3
+   ```
+
+   Useful options: `--lat` / `--lon` (start point; default central Jakarta), `--to-lat` / `--to-lon` (turning point),
+   `--kmh` (default 40), `--no-live`, `--no-history`, `--dry-run` (print the requests, send nothing). The list is at the top of the script.
+3. Open the app and check Live map, Route history (today) and Dashboard.
+4. Afterwards, delete the `Test Car` device in the admin screen.
+
+Notes:
+- Port 5055 must be reachable from your computer: `nc -vz tracker-server-ip 5055` should say "succeeded". A **time-out** with Traccar
+  running fine on the server usually means a firewall in the VPS provider's control panel.
+- `Server answered 400` means Traccar does not know that identifier ("Unknown device" in `docker compose logs traccar`). Check the spelling.
+  Copying a command with a trailing full stop (`sim-3.`) has caused this.
+- The OsmAnd port takes `speed` in **knots** (the script converts from km/h). Real trackers are decoded by Traccar and are not affected.
+- Real GPS wanders by a few metres; the simulator's trail is a perfect line on the road.
+- Only send to your own server. The data is made up.
+
 ---
 
 ## Test with the Traccar Client phone app
@@ -313,7 +361,7 @@ This proves the whole chain before any tracker is bought.
 
    | Setting | Value |
    |---|---|
-   | Server URL | `http://tracker.example.com:5055` (a **full** URL with `http://` and port 5055, not only the host name) |
+   | Server URL | `http://tracker.example.com:5055` (a **full** URL with `http://` and port 5055, not only the host name). If the name is proxied through Cloudflare, use the server's **IP address** instead, e.g. `http://203.0.113.10:5055`. |
    | Device identifier | the ID shown in the app (must equal the Identifier in step 2) |
    | Frequency / interval | 30 seconds is good for a test (the app's own wording varies by version) |
    | Accuracy | highest (keeps GPS on) |
@@ -501,15 +549,15 @@ Tracker protocols are **not encrypted**. Anyone on the network path could read t
 
 ## First things to check on the first real run
 
-Nothing in `deploy/` has been started yet. In this order:
+In this order. Done = checked on the first real deployment (10 Oct 2026, Mode B).
 
-1. `docker compose config` (in `deploy/`) prints the settings without errors. If it complains about a missing variable, fill it in `.env`.
-2. `docker compose up -d --build`: the web image builds (the `npm run build` step is the longest).
-3. `docker compose ps`: `db` healthy, `traccar` healthy (the health check can take a few minutes), `web` healthy. If `traccar` stays "unhealthy" but the admin screen works, the health URL differs in that version; it is only a status label.
-4. `docker compose logs traccar`: no database errors; lines showing it started servers for `osmand` (5055) and the others.
-5. The admin screen loads through the SSH tunnel and the first-registration flow works.
-6. `https://tracker.example.com` shows the login screen, with a valid certificate; `/history` reloads without a 404.
-7. The viewer can log in and the live map connects (F12 > Network > WS: `/api/socket` stays open).
-8. The phone-app test moves `Car 01` on the map.
+1. [done] `docker compose config` (in `deploy/`) prints the settings without errors. If it complains about a missing variable, fill it in `.env`.
+2. [done] `docker compose up -d --build`: the web image builds (the `npm run build` step is the longest; about a minute on the VPS).
+3. [done] `docker compose ps`: `db` healthy, `traccar` healthy (about a minute), `web` healthy.
+4. [done] `docker compose logs traccar`: database migrations ran, no database errors, the web server started on 8082.
+5. [done] The admin screen loads through the SSH tunnel and the first-registration flow works. **Still to confirm:** the *Registration* box is switched off afterwards.
+6. [done] `https://tracker.example.com` shows the login screen over HTTPS (through Cloudflare). **Still to check:** `/history` reloads without a 404.
+7. [partly] Login and live updates work (checked with the admin account; "updated N s ago" counts). **Still to do:** the read-only viewer account, and watching F12 > Network > WS to see that `/api/socket` stays open for a long time.
+8. [partly] A fake car (see [Test with a fake car](#test-with-a-fake-car-no-phone-no-tracker)) moves on the Live map. **Still to do:** Route history and Dashboard on live data, and the phone-app test with `Car 01`.
 9. Browser console shows no Content Security Policy reports (then enforce it).
 10. `sh deploy/backup.sh` creates a file, and a test restore works on a spare machine.

@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "fake-traccar": "node dev/fake-traccar.mjs"
+    "fake-traccar": "node dev/fake-traccar.mjs",
+    "simulate-car": "node dev/simulate-car.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "~9.4.0",
