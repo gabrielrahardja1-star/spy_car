@@ -26,6 +26,10 @@
 //   --dump-min    minutes queueing and tipping at the dump (default 5, so loaded and empty runs are separate trips)
 //   --loaded-kmh  hauling speed (default 60% of --kmh)
 //   --cycles      haul cycles in the backfill (default 4)
+//   --tip-lat/--tip-lon  middle of the dump face (default: 60 m on from where the road ends)
+// At the dump the truck does not just stop at the end of the road: it drives in, swings round, reverses up to the
+// tipping edge, tips (parked for --dump-min), then drives back out. Each load tips 9 m along the face from the last,
+// in rows of 10, with each new row 12 m further out, the way a dump fills up.
 // Example, mine site in South Kalimantan, pit about 1.6 km west of "Area 2" (3°10'21.04"S 115°16'54.51"E):
 //   node dev/simulate-car.mjs --host 203.0.113.10 --id dt-01 --profile dump-truck \
 //     --lat -3.16880 --lon 115.26846 --to-lat -3.172511 --to-lon 115.281808
@@ -53,6 +57,8 @@ const loadedKmh = Number(opt('loaded-kmh', kmh * 0.6))
 const loadMin = Number(opt('load-min', 6))
 const dumpMin = Number(opt('dump-min', 5))
 const cycles = Number(opt('cycles', 4))
+const tipLat = opt('tip-lat', null)
+const tipLon = opt('tip-lon', null)
 const everyS = Number(opt('every', 5))
 const dryRun = flag('dry-run')
 
@@ -140,9 +146,10 @@ let outLen // metres from the start to the turning point
 let s = 0 // metres driven along the whole route (out, then back)
 const clock = { t: 0, live: false }
 let buffer = null // while planning the history, samples are collected here and sent afterwards with shifted times
+let at = null // position off the road (manoeuvring on the dump), or null while on the route
 
 async function tick(speedKmh, stepS) {
-  const p = pointAt(route, s)
+  const p = at ?? pointAt(route, s)
   if (buffer) buffer.push([clock.t, p, speedKmh])
   else await post(clock.t, p, speedKmh)
   if (clock.live) {
@@ -168,11 +175,52 @@ async function drive(toS, stepS, vmax = kmh) {
   }
 }
 
+// ------------------------------------------------------------------ tipping at the dump
+
+let loadsTipped = 0
+
+/** [lat, lon] `ahead` metres along bearing `b` and `right` metres to its right, from p. */
+function moved(p, b, ahead, right) {
+  const r = toRad(b)
+  const east = ahead * Math.sin(r) + right * Math.cos(r)
+  const north = ahead * Math.cos(r) - right * Math.sin(r)
+  return [p[0] + north / 110574, p[1] + east / (111320 * Math.cos(toRad(p[0])))]
+}
+
+/** Drive in a straight line from where the truck is to `to` at `speed`. The bearing is the direction of travel, as GPS reports it. */
+async function crawl(to, speed, stepS) {
+  const from = [at.lat, at.lon]
+  const bearing = bearingDeg(from, to)
+  const steps = Math.max(1, Math.ceil(haversineM(from, to) / ((speed / 3.6) * stepS)))
+  for (let i = 1; i <= steps; i++) {
+    at = { lat: from[0] + ((to[0] - from[0]) * i) / steps, lon: from[1] + ((to[1] - from[1]) * i) / steps, bearing }
+    await tick(speed, stepS)
+  }
+}
+
+/** Tip one load: in from the end of the road, swing round, reverse up to the edge, tip, and back out to the road. */
+async function tipLoad(stepS) {
+  const end = pointAt(route, outLen)
+  const roadEnd = [end.lat, end.lon]
+  const centre = tipLat !== null && tipLon !== null ? [Number(tipLat), Number(tipLon)] : moved(roadEnd, pointAt(route, outLen - 1).bearing, 60, 0)
+  const b = bearingDeg(roadEnd, centre) // facing the dump face
+  const k = loadsTipped++
+  const tip = moved(centre, b, Math.floor(k / 10) * 12, ((k % 10) - 4.5) * 9)
+  const step = Math.min(stepS, 5)
+  at = { ...end }
+  await crawl(moved(tip, b, -10, 25), 12, step) // in, passing to the right of the spot
+  await crawl(moved(tip, b, -35, 8), 10, step) // round, now facing back towards the road
+  await crawl(tip, 5, step) // reversing up to the edge
+  await park(dumpMin, Math.min(30, stepS * 6)) // tipping (and any wait before it)
+  await crawl(roadEnd, 12, step) // out to the haul road
+  at = null
+}
+
 /** One dump truck cycle: load at the pit, haul loaded to the dump, tip, return empty. */
 async function haulCycle(stepS) {
   await park(loadMin, Math.min(30, stepS * 6))
   await drive(outLen, stepS, loadedKmh)
-  await park(dumpMin, Math.min(30, stepS * 6))
+  await tipLoad(stepS)
   await drive(route.length, stepS)
 }
 
