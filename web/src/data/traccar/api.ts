@@ -42,6 +42,13 @@ export interface TraccarGeofence {
   attributes?: Record<string, unknown>
 }
 
+/** The parts of a Traccar user the app reads (GET /api/session, GET /api/users). */
+export interface TraccarUser {
+  id: number
+  administrator?: boolean
+  readonly?: boolean
+}
+
 export interface TraccarTrip {
   deviceId: number
   startTime: string

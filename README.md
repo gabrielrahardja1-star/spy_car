@@ -214,12 +214,17 @@ The admin screen of Traccar is deliberately **not** on the internet. You reach i
    from the geofences they start and end in. If the name differs, the zone does not show.
    (The name is a setting: `VITE_SITE_GEOFENCE_NAME`. A rebuild is needed to change it.)
 
-7. **Checkpoints** (gates, ramps, the dump entrance). Draw a small geofence (a circle of about 30 m on the road works well)
-   per checkpoint and give it a short name such as `CP1 West gate`. Then, in the same geofence form, open **Attributes**,
-   add a custom attribute named `type` with the value `checkpoint`, and save. The app then shows it with a flag on the map,
-   logs every pass in Route history ("Passed CP1 West gate") and shows each truck's last pass on the Live map.
-   Passes are worked out in the app from the trucks' positions, so no Traccar notification setup is needed, and a
-   checkpoint added later also shows passes in older history. Pits and other areas are plain geofences (no attribute).
+7. **Checkpoints** (gates, ramps, the dump entrance) are added **in the app**: sign in with an admin account, open the
+   Live map, switch the side panel to **Checkpoints** and press **Add checkpoint**. Tap the map where it is, or paste the
+   coordinates (`3°10'21.04"S 115°16'54.51"E` or `-3.172511, 115.281808`), give it a name such as `CP1 West gate` and a
+   size (about 30 m covers a haul road), and save. Edit and Delete are on each row. Everyone sees the change at once.
+   - Only an **administrator who is not read-only** can change checkpoints. In Traccar (SSH tunnel), tick **Readonly** on
+     every user who should only look; then the app shows them the list without the buttons.
+   - The app logs every pass in Route history ("Passed CP1 West gate") and shows each truck's last pass on the Live map.
+     Passes are worked out from the trucks' positions, so no Traccar notification setup is needed, and a checkpoint added
+     later also shows passes in older history.
+   - A checkpoint is a Traccar geofence with the attribute `type` = `checkpoint`, so one drawn in Traccar's own screen
+     (with that attribute) works too. Pits and other areas are plain geofences (no attribute).
 
 7. **Create the shared viewer account.** *Settings > Users > +*. Use a placeholder email such as `viewer@example.com`
    (or a real shared mailbox), a long unique password, and tick **Readonly**.

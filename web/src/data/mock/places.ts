@@ -1,6 +1,7 @@
 // Mine-site geofences around "Area 2" (South Kalimantan). The dump is the site zone; each pit's loading area is a place.
 // Centres are the ends of the real haul roads in ./haulRoads; outlines are made up.
-import type { Geofence } from '../types'
+import type { CheckpointInput, Geofence } from '../types'
+import { circleToRing } from '../traccar/wkt'
 import { PIT_N_ROAD, PIT_S_ROAD, PIT_W_ROAD } from './haulRoads'
 import { pointInRing } from './util'
 
@@ -37,12 +38,8 @@ export const PITS: PitDef[] = [PIT_W, PIT_N, PIT_S]
 
 export const PLACES: PlaceDef[] = [SITE, ...PITS]
 
-/** A 30 m circle as metre offsets. */
-const CHECKPOINT_OUTLINE: [number, number][] = Array.from({ length: 16 }, (_, i): [number, number] => [
-  Math.round(30 * Math.sin((i * Math.PI) / 8)),
-  Math.round(30 * Math.cos((i * Math.PI) / 8)),
-])
-const checkpoint = (id: string, name: string, centre: [number, number]): PlaceDef => ({ id, name, kind: 'checkpoint', centre, outline: CHECKPOINT_OUTLINE })
+export const CHECKPOINT_RADIUS_M = 30
+const checkpoint = (id: string, name: string, centre: [number, number]): PlaceDef => ({ id, name, kind: 'checkpoint', centre, outline: [] })
 
 /** Example checkpoints on the haul roads, until the real ones are known. Not places: trips never start or end "at" one. */
 export const CHECKPOINTS: PlaceDef[] = [
@@ -61,7 +58,19 @@ function toPolygon(p: PlaceDef): [number, number][] {
 }
 
 export function buildGeofences(): Geofence[] {
-  return [...PLACES, ...CHECKPOINTS].map((p) => ({ id: p.id, name: p.name, kind: p.kind, polygon: toPolygon(p) }))
+  const zones = PLACES.map((p): Geofence => ({ id: p.id, name: p.name, kind: p.kind, polygon: toPolygon(p) }))
+  return [...zones, ...CHECKPOINTS.map((p) => checkpointGeofence(p.id, { name: p.name, lat: p.centre[0], lon: p.centre[1], radiusM: CHECKPOINT_RADIUS_M }))]
+}
+
+/** A checkpoint as a circular geofence, the way Traccar returns one drawn as a circle. */
+export function checkpointGeofence(id: string, input: CheckpointInput): Geofence {
+  return {
+    id,
+    name: input.name,
+    kind: 'checkpoint',
+    polygon: circleToRing(input.lat, input.lon, input.radiusM),
+    circle: { lat: input.lat, lon: input.lon, radiusM: input.radiusM },
+  }
 }
 
 const polygons = PLACES.map((p) => ({ name: p.name, ring: toPolygon(p) }))

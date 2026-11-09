@@ -38,6 +38,8 @@ export function credentialsFor(baseUrl: string): RequestCredentials {
 
 export interface Http {
   getJson<T>(path: string, query?: Query): Promise<T>
+  /** A change (create, update, delete) with an optional JSON body. Resolves to the JSON answer, or undefined for 204. */
+  send<T = unknown>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T | undefined>
 }
 
 export function createHttp(opts: { baseUrl: string; fetch: FetchLike; onUnauthorized?: () => void }): Http {
@@ -54,6 +56,20 @@ export function createHttp(opts: { baseUrl: string; fetch: FetchLike; onUnauthor
       }
       if (!response.ok) throw new TraccarHttpError(response.status, path)
       return (await response.json()) as T
+    },
+    async send<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<T | undefined> {
+      const response = await opts.fetch(`${baseUrl}${path}`, {
+        method,
+        headers: body === undefined ? { Accept: 'application/json' } : { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        credentials: credentialsFor(baseUrl),
+      })
+      if (response.status === 401) {
+        onUnauthorized?.()
+        throw new TraccarHttpError(401, path)
+      }
+      if (!response.ok) throw new TraccarHttpError(response.status, path)
+      return response.status === 204 ? undefined : ((await response.json()) as T)
     },
   }
 }

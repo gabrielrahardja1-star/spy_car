@@ -35,6 +35,19 @@ export interface Geofence {
   kind: 'site' | 'place' | 'checkpoint'
   /** Closed ring of [lon, lat] points. */
   polygon: [number, number][]
+  /** Set when the geofence is a circle (how checkpoints are made), so it can be edited as one. */
+  circle?: Circle
+}
+
+export interface Circle {
+  lat: number
+  lon: number
+  radiusM: number
+}
+
+/** What an admin enters for a checkpoint: a name and a circle. */
+export interface CheckpointInput extends Circle {
+  name: string
 }
 
 export interface Stop {

@@ -4,7 +4,7 @@ import { knotsToKmh } from '../derive'
 import type { Car, Geofence, Position, Trip } from '../types'
 import type { TraccarDevice, TraccarGeofence, TraccarPosition, TraccarTrip } from './api'
 import { geofenceNameAt } from './geo'
-import { parseArea } from './wkt'
+import { parseArea, parseCircle } from './wkt'
 
 export const carIdOf = (deviceId: number): string => String(deviceId)
 
@@ -49,6 +49,7 @@ export function toGeofences(list: TraccarGeofence[], cfg: Config = config): Geof
   for (const g of list) {
     const polygon = parseArea(g.area)
     if (!polygon) continue
+    const circle = parseCircle(g.area)
     out.push({
       id: String(g.id),
       name: g.name,
@@ -59,6 +60,7 @@ export function toGeofences(list: TraccarGeofence[], cfg: Config = config): Geof
             ? 'checkpoint'
             : 'place',
       polygon,
+      ...(circle ? { circle } : {}),
     })
   }
   return out

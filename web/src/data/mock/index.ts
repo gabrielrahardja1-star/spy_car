@@ -3,6 +3,7 @@ import { config } from '../../config'
 import type { DataSource } from '../source'
 import type { Stop, Summary, Trip } from '../types'
 import { startFeed } from './live'
+import { checkpointGeofence } from './places'
 import { createWorld } from './world'
 
 export interface MockOptions {
@@ -25,9 +26,36 @@ export function createMockDataSource(opts: MockOptions = {}): DataSource {
   const tripsIn = (carId: string | null, from: number, to: number): Trip[] =>
     world.view().trips.filter((t) => (carId === null || t.carId === carId) && overlaps(t, from, to))
 
+  // Checkpoint edits live in memory until the page reloads. Trips keep their places (checkpoints never name one).
+  const geofenceListeners = new Set<() => void>()
+  let nextCheckpoint = 1
+  const geofencesChanged = () => {
+    for (const l of geofenceListeners) l()
+  }
+
   return {
     getCars: async () => world.cars.slice(),
     getGeofences: async () => world.geofences.slice(),
+    checkpoints: {
+      canEdit: async () => true,
+      async save(input, id) {
+        const fence = checkpointGeofence(id ?? `g-new-${nextCheckpoint++}`, { ...input, name: input.name.trim() })
+        const i = world.geofences.findIndex((g) => g.id === id)
+        if (id !== undefined && i < 0) throw new Error(`Checkpoint ${id} no longer exists`)
+        if (i >= 0) world.geofences[i] = fence
+        else world.geofences.push(fence)
+        geofencesChanged()
+      },
+      async remove(id) {
+        const i = world.geofences.findIndex((g) => g.id === id)
+        if (i >= 0) world.geofences.splice(i, 1)
+        geofencesChanged()
+      },
+    },
+    onGeofencesChange(listener) {
+      geofenceListeners.add(listener)
+      return () => geofenceListeners.delete(listener)
+    },
     getLatestPositions: async () => world.view().latest(),
 
     subscribe(handlers) {

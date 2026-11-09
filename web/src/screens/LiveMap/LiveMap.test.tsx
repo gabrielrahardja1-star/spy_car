@@ -117,3 +117,52 @@ describe('LiveMap map fallback', () => {
     expect(map).toHaveAccessibleName(/DT-01.*DT-02/)
   })
 })
+
+describe('LiveMap checkpoints', () => {
+  useFixedClock()
+
+  it('lists the checkpoints for everyone, with no editing when the source cannot edit', async () => {
+    renderApp('/', createFakeSource({ geofences: [{ id: 'cp', name: 'CP1 Gate', kind: 'checkpoint', polygon: [[0, 0], [0, 1], [1, 1], [0, 0]] }] }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Checkpoints (1)' }))
+    expect(screen.getByText('CP1 Gate')).toBeInTheDocument()
+    expect(screen.getByText('Shape drawn in Traccar')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add checkpoint' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull()
+  })
+
+  it('adds a checkpoint from pasted coordinates, edits it and deletes it after confirming', async () => {
+    renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Checkpoints (4)' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add checkpoint' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Give the checkpoint a name.')
+
+    await userEvent.type(screen.getByLabelText('Name'), 'CP5 Tip face')
+    await userEvent.type(screen.getByLabelText('Location'), 'nowhere')
+    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Tap the map, or paste the location')
+
+    await userEvent.clear(screen.getByLabelText('Location'))
+    await userEvent.type(screen.getByLabelText('Location'), '-3.171900, 115.282100')
+    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
+    const list = await screen.findByRole('list', { name: 'Checkpoints' })
+    const row = (await within(list).findByText('CP5 Tip face')).closest('li')!
+    expect(row).toHaveTextContent(`3°10'18.84"S 115°16'55.56"E · 30 m`)
+    expect(screen.getByRole('button', { name: 'Checkpoints (5)' })).toBeInTheDocument()
+
+    await userEvent.click(within(row).getByRole('button', { name: 'Edit' }))
+    expect(screen.getByLabelText('Location')).toHaveValue(`3°10'18.84"S 115°16'55.56"E`)
+    await userEvent.clear(screen.getByLabelText('Size (radius, m)'))
+    await userEvent.type(screen.getByLabelText('Size (radius, m)'), '50')
+    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
+    const edited = (await within(screen.getByRole('list', { name: 'Checkpoints' })).findByText(/· 50 m$/)).closest('li')!
+    expect(edited).toHaveTextContent('CP5 Tip face')
+
+    await userEvent.click(within(edited).getByRole('button', { name: 'Delete' }))
+    expect(edited).toHaveTextContent('Delete CP5 Tip face for everyone?')
+    await userEvent.click(within(edited).getByRole('button', { name: 'Delete' }))
+    expect(await screen.findByRole('button', { name: 'Checkpoints (4)' })).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Checkpoints' })).queryByText('CP5 Tip face')).toBeNull()
+  })
+})
+

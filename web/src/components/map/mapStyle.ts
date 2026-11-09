@@ -6,6 +6,8 @@ export const TRAIL_SOURCE = 'trail'
 export const SITE_SOURCE = 'site'
 /** Route history: the whole trip, drawn as a dotted line under the driven part. */
 export const TRAIL_AHEAD_SOURCE = 'trail-ahead'
+/** The checkpoint being added or edited, drawn as a circle. */
+export const DRAFT_SOURCE = 'draft'
 
 const GROUND = '#DFE9F8'
 const ROAD = '#F7FAFF'
@@ -26,6 +28,7 @@ export function buildMapStyle(): StyleSpecification {
       [TRAIL_SOURCE]: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       [TRAIL_AHEAD_SOURCE]: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       [SITE_SOURCE]: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      [DRAFT_SOURCE]: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
     },
     layers: [
       { id: 'ground', type: 'background', paint: { 'background-color': GROUND } },
@@ -105,6 +108,18 @@ export function buildMapStyle(): StyleSpecification {
         source: SITE_SOURCE,
         layout: { 'line-join': 'round' },
         paint: { 'line-color': ORANGE, 'line-opacity': 0.8, 'line-width': 2, 'line-dasharray': [4, 4] },
+      },
+      {
+        id: 'draft-fill',
+        type: 'fill',
+        source: DRAFT_SOURCE,
+        paint: { 'fill-color': ORANGE, 'fill-opacity': 0.18 },
+      },
+      {
+        id: 'draft-outline',
+        type: 'line',
+        source: DRAFT_SOURCE,
+        paint: { 'line-color': ORANGE, 'line-width': 2 },
       },
       {
         // Not yet driven: grey-blue dots (5px, 2px dash and 12px pitch as in the design; dash units are line widths).

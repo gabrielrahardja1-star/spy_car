@@ -83,7 +83,20 @@ export function useCars(): Async<Car[]> {
 
 export function useGeofences(): Async<Geofence[]> {
   const source = useDataSource()
-  return useAsync(() => source.getGeofences(), [source])
+  const [version, setVersion] = useState(0)
+  useEffect(() => source.onGeofencesChange?.(() => setVersion((v) => v + 1)), [source])
+  const result = useAsync(() => source.getGeofences(), [source, version])
+  // After a checkpoint change, keep showing the previous list until the new one arrives (no flash of "none").
+  const [shown, setShown] = useState<{ source: unknown; result: Async<Geofence[]> }>({ source, result })
+  if (result !== shown.result && (result.status !== 'loading' || shown.source !== source)) setShown({ source, result })
+  return shown.source === source && result.status === 'loading' ? shown.result : result
+}
+
+/** Whether the signed-in user may add and change checkpoints. False while unknown and for sources without editing. */
+export function useCanEditCheckpoints(): boolean {
+  const source = useDataSource()
+  const result = useAsync(() => source.checkpoints?.canEdit() ?? Promise.resolve(false), [source])
+  return result.status === 'ready' && result.data
 }
 
 /** Latest position per car + live updates, status/age recomputed every second. Order follows useCars. */

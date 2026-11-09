@@ -4,13 +4,14 @@ import * as maplibregl from 'maplibre-gl'
 import type { GeoJSONSource, Map as MapLibreMap, Marker } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import type { Geofence } from '../../data/types'
+import type { Circle, Geofence } from '../../data/types'
 import type { MapMode } from '../ui/MapOverlays'
 import styles from './LiveMapView.module.css'
 import { GLIDE_MAX_M, boundsOf, distanceM, glideAngle, glideAt, siteFeatures, trailFeature, type LngLat, type MapPin } from './mapGeometry'
 import type { CarOverlay } from './carLayer'
 import { modelFor } from './carModels'
-import { SITE_SOURCE, TRAIL_SOURCE, buildMapStyle } from './mapStyle'
+import { DRAFT_SOURCE, SITE_SOURCE, TRAIL_SOURCE, buildMapStyle } from './mapStyle'
+import { circleToRing } from '../../data/traccar/wkt'
 import { addPlaceMarkers } from './placeMarkers'
 import { createPinElement, type PinElement } from './pinElement'
 
@@ -28,6 +29,10 @@ export interface LiveMapViewProps {
   trail: LngLat[]
   mode: MapMode
   onSelect: (id: string) => void
+  /** The checkpoint being added or edited, drawn as a circle; null for none. */
+  draft?: Circle | null
+  /** When set, a click on the map reports that point (picking a checkpoint's place) and the cursor is a crosshair. */
+  onPick?: ((lat: number, lon: number) => void) | null
   /** Called if the map cannot start (no WebGL, style failed), so the caller can show a fallback. */
   onFail: () => void
   ref?: Ref<MapHandle>
@@ -60,7 +65,7 @@ interface PinState {
 
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
-export function LiveMapView({ pins, selectedId, geofences, trail, mode, onSelect, onFail, ref }: LiveMapViewProps) {
+export function LiveMapView({ pins, selectedId, geofences, trail, mode, onSelect, draft = null, onPick = null, onFail, ref }: LiveMapViewProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<MapLibreMap | null>(null)
   const [ready, setReady] = useState(false)
@@ -74,9 +79,9 @@ export function LiveMapView({ pins, selectedId, geofences, trail, mode, onSelect
   const flat = useRef(false)
 
   // Latest props for callbacks that outlive a render (map events, animation frames, the imperative handle).
-  const latest = useRef({ pins, onSelect, onFail, selectedId, mode })
+  const latest = useRef({ pins, onSelect, onFail, selectedId, mode, onPick })
   useEffect(() => {
-    latest.current = { pins, onSelect, onFail, selectedId, mode }
+    latest.current = { pins, onSelect, onFail, selectedId, mode, onPick }
   })
 
   useImperativeHandle(ref, () => ({
@@ -126,6 +131,7 @@ export function LiveMapView({ pins, selectedId, geofences, trail, mode, onSelect
     map.on('error', (e) => {
       if (!map.isStyleLoaded() && /style|source/i.test(String(e.error?.message))) latest.current.onFail()
     })
+    map.on('click', (e) => latest.current.onPick?.(e.lngLat.lat, e.lngLat.lng))
     mapRef.current = map
     const pinStates = states.current
     return () => {
@@ -294,6 +300,23 @@ export function LiveMapView({ pins, selectedId, geofences, trail, mode, onSelect
     placeMarkers.current.forEach((m) => m.remove())
     placeMarkers.current = addPlaceMarkers(map, geofences)
   }, [geofences, ready])
+
+  useEffect(() => {
+    if (!ready) return
+    const map = mapRef.current
+    if (!map) return
+    map.getSource<GeoJSONSource>(DRAFT_SOURCE)?.setData({
+      type: 'FeatureCollection',
+      features: draft
+        ? [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [circleToRing(draft.lat, draft.lon, draft.radiusM)] } }]
+        : [],
+    })
+  }, [draft, ready])
+
+  useEffect(() => {
+    const canvas = mapRef.current?.getCanvas()
+    if (canvas) canvas.style.cursor = onPick ? 'crosshair' : ''
+  }, [onPick, ready])
 
   return <div ref={container} className={styles.map} />
 }

@@ -9,7 +9,12 @@ import { Legend, ModeToggle, ViewControls, type MapMode } from '../../components
 import { StatTile } from '../../components/ui/StatTile'
 import { StatusPill } from '../../components/ui/StatusPill'
 import { dayBounds, formatClock, formatDistance } from '../../data/format'
-import { useGeofences, useLiveCars, useNow, useRoute, useTrips } from '../../data/hooks'
+import { useCanEditCheckpoints, useGeofences, useLiveCars, useNow, useRoute, useTrips } from '../../data/hooks'
+import { useDataSource } from '../../data/DataProvider'
+import { formatDms } from '../../data/coords'
+import { SegmentedControl } from '../../components/ui/SegmentedControl'
+import { CheckpointPanel } from './CheckpointPanel'
+import { formCircle, type CheckpointForm } from './checkpointForm'
 import { summarizeTrips } from '../../data/derive'
 import type { Geofence, LiveCar, ZoneEvent } from '../../data/types'
 import { zoneEvents } from '../../data/zones'
@@ -142,7 +147,17 @@ export function LiveMap() {
   const [mode, setMode] = useState<MapMode>('3d')
   const cars = live.status === 'ready' ? live.data : []
   const [selected, setSelected] = useSelectedCar(cars.map((c) => c.car.id))
-  const fences = geofences.status === 'ready' ? geofences.data : []
+  const fences = useMemo(() => (geofences.status === 'ready' ? geofences.data : []), [geofences])
+  const source = useDataSource()
+  const canEdit = useCanEditCheckpoints()
+  const [tab, setTab] = useState<'trucks' | 'checkpoints'>('trucks')
+  const [form, setForm] = useState<CheckpointForm | null>(null)
+  const checkpoints = useMemo(() => fences.filter((g) => g.kind === 'checkpoint'), [fences])
+  const draft = useMemo(() => (form ? formCircle(form) : null), [form])
+  const onPick = useMemo(
+    () => (form ? (lat: number, lon: number) => setForm({ ...form, location: formatDms({ lat, lon }) }) : null),
+    [form],
+  )
 
   const mapRef = useRef<MapHandle>(null)
   const trail = useTrail(cars.find((c) => c.car.id === selected), today.start, today.end)
@@ -166,13 +181,34 @@ export function LiveMap() {
 
   return (
     <main className={split.main}>
-      <section aria-label="Trucks" className={split.panel}>
+      <section aria-label={tab === 'trucks' ? 'Trucks' : 'Checkpoints'} className={split.panel}>
+        <SegmentedControl
+          label="Show"
+          fill
+          options={[
+            { value: 'trucks', label: 'Trucks' },
+            { value: 'checkpoints', label: `Checkpoints${checkpoints.length > 0 ? ` (${checkpoints.length})` : ''}` },
+          ]}
+          value={tab}
+          onChange={(v) => {
+            setTab(v)
+            if (v === 'trucks') setForm(null)
+          }}
+        />
         <div className={styles.heading}>
-          <h1>Trucks</h1>
-          {live.status === 'ready' && <div className={styles.summary}>{summaryText(live.data)}</div>}
+          <h1>{tab === 'trucks' ? 'Trucks' : 'Checkpoints'}</h1>
+          {tab === 'trucks' && live.status === 'ready' && <div className={styles.summary}>{summaryText(live.data)}</div>}
         </div>
-        {blocked && <AsyncNotice state={blocked} loading="Loading trucks..." />}
-        {cars.map((c, i) => (
+        {tab === 'checkpoints' && (
+          <CheckpointPanel
+            checkpoints={checkpoints}
+            editor={canEdit ? (source.checkpoints ?? null) : null}
+            form={form}
+            onFormChange={setForm}
+          />
+        )}
+        {tab === 'trucks' && blocked && <AsyncNotice state={blocked} loading="Loading trucks..." />}
+        {tab === 'trucks' && cars.map((c, i) => (
           <CarCard
             key={c.car.id}
             live={c}
@@ -195,6 +231,8 @@ export function LiveMap() {
           trail={trail}
           mode={mode}
           onSelect={setSelected}
+          draft={draft}
+          onPick={onPick}
           siteName={fences.find((g) => g.kind === 'site')?.name}
           originName={fences.find((g) => g.kind === 'place')?.name}
         />

@@ -6,7 +6,7 @@ import type { DataSource } from '../../source'
 import type { Car, Geofence, Position, Trip } from '../../types'
 import type { TraccarDevice, TraccarGeofence, TraccarPosition, TraccarStop, TraccarTrip } from '../api'
 import { pathLengthM } from '../geo'
-import { ringToPolygonWkt } from '../wkt'
+import { circleWkt, ringToPolygonWkt } from '../wkt'
 
 const KMH_PER_KNOT = 1.852
 
@@ -45,7 +45,7 @@ export function toTraccarPosition(p: Position, deviceId: number): TraccarPositio
 }
 
 function geofenceArea(g: Geofence): string {
-  return ringToPolygonWkt(g.polygon)
+  return g.circle ? circleWkt(g.circle.lat, g.circle.lon, g.circle.radiusM) : ringToPolygonWkt(g.polygon)
 }
 
 export async function createFakeBackend(source: DataSource, opts: FakeBackendOptions = {}): Promise<FakeBackend> {

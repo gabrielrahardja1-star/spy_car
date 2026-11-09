@@ -54,6 +54,21 @@ export function parseArea(area: unknown): [number, number][] | null {
   return null
 }
 
+/** The centre and radius of a CIRCLE area, or null for anything else. */
+export function parseCircle(area: unknown): { lat: number; lon: number; radiusM: number } | null {
+  if (typeof area !== 'string') return null
+  const circle = /^CIRCLE\s*\(([^(),]+),([^(),]+)\)$/i.exec(area.trim())
+  const centre = circle ? pair(circle[1]) : null
+  const radiusM = circle ? Number(circle[2]) : NaN
+  if (!centre || !Number.isFinite(radiusM) || radiusM <= 0) return null
+  return { lat: centre[0], lon: centre[1], radiusM }
+}
+
+/** Traccar WKT for a circle (latitude first). */
+export function circleWkt(lat: number, lon: number, radiusM: number): string {
+  return `CIRCLE (${lat.toFixed(6)} ${lon.toFixed(6)}, ${Math.round(radiusM)})`
+}
+
 /** Inverse of parseArea for polygons, used by the fake server and tests: [lon, lat] ring -> Traccar WKT. */
 export function ringToPolygonWkt(ring: [number, number][]): string {
   return `POLYGON ((${ring.map(([lon, lat]) => `${lat} ${lon}`).join(', ')}))`
