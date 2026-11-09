@@ -17,8 +17,18 @@
 //   --id       device identifier in Traccar (required)
 //   --lat/--lon        start point (default: central Jakarta, a place with a dense road network). It is moved to the nearest road.
 //   --to-lat/--to-lon  turning point (default: about 2 km north and 1.6 km east of the start). Also moved to the nearest road.
-//   --kmh      cruising speed (default 40)                   --every  seconds between live positions (default 5)
+//   --kmh      cruising speed (default 40, dump truck 30)    --every  seconds between live positions (default 5)
 //   --no-history  skip the backfill      --no-live  stop after the backfill      --dry-run  print URLs, send nothing
+//
+// Dump truck haul cycles instead of a car (--profile dump-truck): the start is the loading point in the pit, the turning
+// point is the dump (disposal, ROM or stockpile). Each cycle: load (parked), haul loaded (slower), tip, return empty.
+//   --load-min    minutes loading/queueing at the pit (default 6; 5 or more makes Traccar end the trip there)
+//   --dump-min    minutes tipping at the dump (default 2)    --loaded-kmh  hauling speed (default 60% of --kmh)
+//   --cycles      haul cycles in the backfill (default 4)
+// Example, mine site in South Kalimantan, pit about 1.6 km west of "Area 2" (3°10'21.04"S 115°16'54.51"E):
+//   node dev/simulate-car.mjs --host 203.0.113.10 --id dt-01 --profile dump-truck \
+//     --lat -3.16880 --lon 115.26846 --to-lat -3.172511 --to-lon 115.281808
+// Remote haul roads are often missing from OpenStreetMap; if the routing service finds no route, pick points on a mapped road.
 //
 // Only ever send to your own server. Positions are made up and mean nothing.
 
@@ -36,7 +46,12 @@ const lat0 = Number(opt('lat', -6.2022))
 const lon0 = Number(opt('lon', 106.8237))
 const lat1 = Number(opt('to-lat', lat0 + 0.018))
 const lon1 = Number(opt('to-lon', lon0 + 0.015))
-const kmh = Number(opt('kmh', 40))
+const truck = opt('profile', 'car') === 'dump-truck'
+const kmh = Number(opt('kmh', truck ? 30 : 40))
+const loadedKmh = Number(opt('loaded-kmh', kmh * 0.6))
+const loadMin = Number(opt('load-min', 6))
+const dumpMin = Number(opt('dump-min', 2))
+const cycles = Number(opt('cycles', 4))
 const everyS = Number(opt('every', 5))
 const dryRun = flag('dry-run')
 
@@ -142,14 +157,22 @@ async function park(minutes, stepS) {
 }
 
 /** Drive on until `toS`: slower near both ends of the leg, with gentle speed changes on the way. */
-async function drive(toS, stepS) {
+async function drive(toS, stepS, vmax = kmh) {
   const from = s
   while (s < toS) {
     const ease = Math.min(1, Math.max(0.25, Math.min(s - from, toS - s) / 120))
-    const v = kmh * ease * (0.85 + 0.15 * Math.sin(s / 250))
+    const v = vmax * ease * (0.85 + 0.15 * Math.sin(s / 250))
     await tick(v, stepS)
     s = Math.min(toS, s + (v / 3.6) * stepS)
   }
+}
+
+/** One dump truck cycle: load at the pit, haul loaded to the dump, tip, return empty. */
+async function haulCycle(stepS) {
+  await park(loadMin, Math.min(30, stepS * 6))
+  await drive(outLen, stepS, loadedKmh)
+  await park(dumpMin, Math.min(30, stepS * 6))
+  await drive(route.length, stepS)
 }
 
 try {
@@ -164,16 +187,24 @@ try {
   if (!flag('no-history')) {
     buffer = []
     clock.t = 0
-    await park(20, 60)
-    await drive(outLen, 10)
-    await park(10, 60)
-    await drive(route.length, 10)
-    await park(15, 60)
+    if (truck) {
+      for (let i = 0; i < cycles; i++) {
+        s = 0
+        await haulCycle(10)
+      }
+      await park(10, 60)
+    } else {
+      await park(20, 60)
+      await drive(outLen, 10)
+      await park(10, 60)
+      await drive(route.length, 10)
+      await park(15, 60)
+    }
     const shift = Date.now() / 1000 - 30 - buffer[buffer.length - 1][0]
     console.log(`Sending ${buffer.length} history positions (about ${Math.round(buffer[buffer.length - 1][0] / 60)} minutes)...`)
     for (const [t, p, v] of buffer) await post(t + shift, p, v)
     buffer = null
-    console.log('History sent: 2 trips (out and back) with parked periods between.')
+    console.log(truck ? `History sent: ${cycles} haul cycles (pit to dump and back).` : 'History sent: 2 trips (out and back) with parked periods between.')
   }
 
   if (!flag('no-live')) {
@@ -182,10 +213,14 @@ try {
     clock.t = Date.now() / 1000
     for (;;) {
       s = 0
-      await park(1, everyS)
-      await drive(outLen, everyS)
-      await park(1, everyS)
-      await drive(route.length, everyS)
+      if (truck) {
+        await haulCycle(everyS)
+      } else {
+        await park(1, everyS)
+        await drive(outLen, everyS)
+        await park(1, everyS)
+        await drive(route.length, everyS)
+      }
       process.stdout.write('.')
     }
   }

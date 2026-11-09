@@ -337,6 +337,14 @@ then keeps driving live until you press Ctrl+C. The computer running it needs in
 
    Useful options: `--lat` / `--lon` (start point; default central Jakarta), `--to-lat` / `--to-lon` (turning point),
    `--kmh` (default 40), `--no-live`, `--no-history`, `--dry-run` (print the requests, send nothing). The list is at the top of the script.
+
+   For a **dump truck**, add `--profile dump-truck`: the start point is the loading point in the pit, the turning point is the
+   dump. It runs haul cycles (load 6 min, haul loaded at 60% speed, tip 2 min, return empty) instead of two car trips.
+   Example for the pit west of Area 2 (South Kalimantan site):
+
+   ```sh
+   npm run simulate-car -- --host tracker-server-ip --id dt-01 --profile dump-truck --lat -3.16880 --lon 115.26846 --to-lat -3.172511 --to-lon 115.281808
+   ```
 3. Open the app and check Live map, Route history (today) and Dashboard.
 4. Afterwards, delete the `Test Car` device in the admin screen.
 

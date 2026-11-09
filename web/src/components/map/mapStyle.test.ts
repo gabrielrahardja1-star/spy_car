@@ -29,6 +29,14 @@ describe('buildMapStyle', () => {
     expect(layer('site-outline')?.paint).toHaveProperty('line-dasharray')
   })
 
+  it('draws mine-site features: quarry pits and unpaved tracks (haul roads are often tagged track)', () => {
+    expect(layer('quarry')).toMatchObject({ 'source-layer': 'landuse', filter: ['==', ['get', 'class'], 'quarry'] })
+    expect(layer('tracks')).toMatchObject({ 'source-layer': 'transportation', filter: ['==', ['get', 'class'], 'track'] })
+    const ids = style.layers.map((l) => l.id)
+    expect(ids.indexOf('quarry')).toBeLessThan(ids.indexOf('tracks'))
+    expect(ids.indexOf('tracks')).toBeLessThan(ids.indexOf('trail'))
+  })
+
   it('extrudes buildings, with a default height where the data has none', () => {
     const b = layer('buildings') as { type: string; paint: Record<string, unknown> }
     expect(b.type).toBe('fill-extrusion')

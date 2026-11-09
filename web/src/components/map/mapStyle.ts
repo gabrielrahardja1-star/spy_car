@@ -44,6 +44,15 @@ export function buildMapStyle(): StyleSpecification {
         paint: { 'fill-color': '#D5E4F6', 'fill-opacity': 0.8 },
       },
       {
+        // Mine pits (OSM landuse=quarry). Outlines come from aerial imagery and lag behind active digging.
+        id: 'quarry',
+        type: 'fill',
+        source: 'openmaptiles',
+        'source-layer': 'landuse',
+        filter: ['==', ['get', 'class'], 'quarry'],
+        paint: { 'fill-color': '#E6E0D6', 'fill-outline-color': '#CFC6B8' },
+      },
+      {
         id: 'water',
         type: 'fill',
         source: 'openmaptiles',
@@ -67,6 +76,21 @@ export function buildMapStyle(): StyleSpecification {
             14, ['match', ['get', 'class'], ['motorway', 'trunk', 'primary'], 9, ['secondary', 'tertiary'], 6, 3],
             18, ['match', ['get', 'class'], ['motorway', 'trunk', 'primary'], 36, ['secondary', 'tertiary'], 26, 12],
           ],
+        },
+      },
+      {
+        // Unpaved tracks: on mine sites many haul roads are mapped this way. Narrow and dashed so they read as dirt.
+        id: 'tracks',
+        type: 'line',
+        source: 'openmaptiles',
+        'source-layer': 'transportation',
+        minzoom: 12,
+        filter: ['==', ['get', 'class'], 'track'],
+        layout: { 'line-join': 'round' },
+        paint: {
+          'line-color': ROAD,
+          'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 12, 1, 14, 2.5, 18, 9],
+          'line-dasharray': [3, 1],
         },
       },
       {
