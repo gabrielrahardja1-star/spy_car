@@ -1,5 +1,7 @@
-// Invented geofences. Coordinates are made up; no real place names.
+// Mine-site geofences around "Area 2" (South Kalimantan). The dump is the site zone; each pit's loading area is a place.
+// Centres are the ends of the real haul roads in ./haulRoads; outlines are made up.
 import type { Geofence } from '../types'
+import { PIT_N_ROAD, PIT_S_ROAD, PIT_W_ROAD } from './haulRoads'
 import { pointInRing } from './util'
 
 export interface PlaceDef {
@@ -13,52 +15,27 @@ export interface PlaceDef {
 }
 
 export const SITE: PlaceDef = {
-  id: 'g-site',
-  name: 'Site',
+  id: 'g-area2',
+  name: 'Area 2',
   kind: 'site',
-  centre: [-5.14, 119.41],
-  outline: [[-520, -150], [-300, -380], [260, -340], [560, -60], [380, 330], [-260, 360], [-560, 120]],
+  centre: PIT_W_ROAD[PIT_W_ROAD.length - 1],
+  outline: [[-260, -90], [-150, -260], [160, -240], [300, -40], [220, 230], [-120, 270], [-280, 110]],
 }
 
-export const DEPOT: PlaceDef = {
-  id: 'g-depot',
-  name: 'Town depot',
-  kind: 'place',
-  centre: [-5.4, 119.3],
-  outline: [[-230, -170], [210, -190], [250, 80], [60, 200], [-240, 150]],
+export interface PitDef extends PlaceDef {
+  /** Haul road from this pit's loading point to Area 2, [lat, lon]. */
+  road: [number, number][]
 }
 
-export const SUPPLIER: PlaceDef = {
-  id: 'g-supplier',
-  name: 'Supplier yard',
-  kind: 'place',
-  centre: [-4.96, 119.6],
-  outline: [[-300, -220], [280, -240], [320, 160], [-20, 260], [-310, 180]],
-}
+const PIT_OUTLINE: [number, number][] = [[-200, -120], [-60, -210], [150, -170], [210, 20], [110, 190], [-120, 180], [-210, 50]]
+const pit = (id: string, name: string, road: [number, number][]): PitDef => ({ id, name, kind: 'place', centre: road[0], outline: PIT_OUTLINE, road })
 
-export const PLACES: PlaceDef[] = [SITE, DEPOT, SUPPLIER]
+export const PIT_W = pit('g-pit-w', 'Pit W', PIT_W_ROAD)
+export const PIT_N = pit('g-pit-n', 'Pit N', PIT_N_ROAD)
+export const PIT_S = pit('g-pit-s', 'Pit S', PIT_S_ROAD)
+export const PITS: PitDef[] = [PIT_W, PIT_N, PIT_S]
 
-/** An invented stop-off (fuel, shop, gate) a few km from a place. Not a geofence, so trips to it end in "Unknown place". */
-export interface Waypoint {
-  id: string
-  /** [lat, lon] */
-  centre: [number, number]
-  near: PlaceDef
-}
-
-function offsetFrom(p: PlaceDef, eastM: number, northM: number): [number, number] {
-  const [lat0, lon0] = p.centre
-  return [lat0 + northM / 110574, lon0 + eastM / (111320 * Math.cos((lat0 * Math.PI) / 180))]
-}
-
-/** Short local hops in the history. Every one is well outside every geofence outline. */
-export const WAYPOINTS: Waypoint[] = [
-  { id: 'wp-depot-fuel', near: DEPOT, centre: offsetFrom(DEPOT, 2400, 3100) },
-  { id: 'wp-depot-hardware', near: DEPOT, centre: offsetFrom(DEPOT, -5200, 6800) },
-  { id: 'wp-site-gate', near: SITE, centre: offsetFrom(SITE, 4100, -5200) },
-  { id: 'wp-site-junction', near: SITE, centre: offsetFrom(SITE, -1900, 2300) },
-  { id: 'wp-supplier-fuel', near: SUPPLIER, centre: offsetFrom(SUPPLIER, -3600, -4400) },
-]
+export const PLACES: PlaceDef[] = [SITE, ...PITS]
 
 function toPolygon(p: PlaceDef): [number, number][] {
   const [lat0, lon0] = p.centre

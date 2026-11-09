@@ -58,7 +58,7 @@ interface ViewControlsProps {
   onZoomOut?: () => void
 }
 
-export function ViewControls({ fitLabel = 'Fit both cars', inline, onFit, onZoomIn, onZoomOut }: ViewControlsProps) {
+export function ViewControls({ fitLabel = 'Fit all trucks', inline, onFit, onZoomIn, onZoomOut }: ViewControlsProps) {
   const corner = inline ? {} : { right: 16, bottom: 16 }
   return (
     <div className={inline ? undefined : styles.floating} style={{ ...corner, display: 'flex', alignItems: 'center', gap: 8 }}>

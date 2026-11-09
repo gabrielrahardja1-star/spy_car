@@ -28,7 +28,7 @@ export const config: Config = {
   workdayEndHour: 18,
   dataSource: import.meta.env.VITE_DATA_SOURCE === 'traccar' ? 'traccar' : 'mock',
   traccarUrl: (import.meta.env.VITE_TRACCAR_URL ?? '').replace(/\/+$/, ''),
-  siteGeofenceName: import.meta.env.VITE_SITE_GEOFENCE_NAME || 'Site',
+  siteGeofenceName: import.meta.env.VITE_SITE_GEOFENCE_NAME || 'Area 2',
   minPauseMs: 2 * 60 * 1000,
   pauseDeriveMaxRangeMs: 2 * 24 * 60 * 60 * 1000,
 }

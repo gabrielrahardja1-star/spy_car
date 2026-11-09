@@ -50,7 +50,7 @@ export function Login({ onSubmit, notice }: Props) {
               <circle cx="12" cy="10" r="2.5" />
             </svg>
           </div>
-          <div className={styles.appName}>Site Car Tracker</div>
+          <div className={styles.appName}>Haul Truck Tracker</div>
         </div>
         <h1 className={styles.title}>Sign in</h1>
         {info && (

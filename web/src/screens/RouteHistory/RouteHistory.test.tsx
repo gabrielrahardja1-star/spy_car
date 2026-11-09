@@ -253,7 +253,7 @@ describe('RouteHistory', () => {
       throw new Error('down')
     }
     renderApp('/history', source)
-    expect(screen.getByText('Loading cars...')).toBeInTheDocument()
+    expect(screen.getByText('Loading trucks...')).toBeInTheDocument()
     expect(await screen.findByText("Can't reach the server")).toBeInTheDocument()
   })
 

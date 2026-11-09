@@ -58,7 +58,7 @@ export interface HistoryMapViewProps {
 
 const PITCH_3D = 55
 const BEARING_3D = -20
-const DEFAULT_CENTER: LngLat = [119.41, -5.14]
+const DEFAULT_CENTER: LngLat = [115.2812, -3.1721] // Area 2 haul site
 const SINGLE_POINT_ZOOM = 15
 const FALLBACK_ZOOM = 13
 const FIT_ANIMATION_MS = 900

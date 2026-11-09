@@ -85,3 +85,8 @@ export function makePath(a: [number, number], b: [number, number], rng: () => nu
   }
   return build((lo + hi) / 2)
 }
+
+/** A haul road ([lat, lon], pit first) as a path: loaded runs pit -> dump, empty runs dump -> pit. */
+export function roadPath(road: [number, number][], loaded: boolean): Path {
+  return toPath(loaded ? road : road.slice().reverse())
+}

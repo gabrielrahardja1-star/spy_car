@@ -355,7 +355,7 @@ function TripsTable(props: { range: Range; cars: Async<Car[]>; trips: Async<Trip
             <table className={styles.table} aria-labelledby={titleId}>
               <thead>
                 <tr>
-                  <th scope="col">Car</th>
+                  <th scope="col">Truck</th>
                   <th scope="col">Route</th>
                   <th scope="col">Time</th>
                   <th scope="col" className={styles.num}>Distance</th>

@@ -1,17 +1,16 @@
-// Seeded history for the 30 local days before today.
+// Seeded history for the 30 local days before today: shifts of haul cycles between a pit and Area 2.
 import type { Position, SignalGap, Trip } from '../types'
-import { PLACES, SITE, WAYPOINTS, type PlaceDef } from './places'
-import { makePath } from './route'
+import { PIT_N, PIT_S, PIT_W, type PitDef } from './places'
+import { roadPath } from './route'
+import { DUMP_MS, LOAD_MS } from './today'
 import { buildTrip, type StopPlan } from './trips'
-import { haversineM, HOUR, hashSeed, localDayStart, localWeekday, MINUTE, mulberry32 } from './util'
+import { HOUR, hashSeed, localDayStart, localWeekday, MINUTE, mulberry32 } from './util'
 
 /** Whole days generated before today (one spare so a 30-day range starting mid-day is covered). */
 export const HISTORY_DAYS = 31
 const HISTORY_INTERVAL_MS = 30_000
-/** Most a car drives in one day (a leg that would pass this is skipped). The two cars differ a little. */
-const DAILY_BUDGET_M = [110_000, 100_000]
-/** A leg shorter than this is a local hop: slower town driving, shorter waits, fewer stops. */
-const SHORT_LEG_M = 15_000
+/** Runs at least this long can have a short wait (giving way, a crossing) or a signal gap. */
+const LONG_RUN_MS = 12 * MINUTE
 
 export interface History {
   /** Oldest first. */
@@ -23,43 +22,20 @@ export interface History {
 
 /** Idle chance per weekday (0 = Sunday). */
 const IDLE_CHANCE = [0.7, 0.1, 0.07, 0.07, 0.1, 0.12, 0.4]
-
-/** A place a car can be at the end of a leg: a geofence or a nearby stop-off. */
-interface Node {
-  centre: [number, number]
-  /** Waypoints return to this place; geofences have none. */
-  home: PlaceDef | null
-}
-
-const NODES: Node[] = [
-  ...PLACES.map((p): Node => ({ centre: p.centre, home: null })),
-  ...WAYPOINTS.map((w): Node => ({ centre: w.centre, home: w.near })),
+/** Pits each truck is sent to, with their chance. */
+const ASSIGNMENTS: [PitDef, number][][] = [
+  [[PIT_W, 0.7], [PIT_N, 0.3]],
+  [[PIT_S, 0.55], [PIT_N, 0.45]],
 ]
-const nodeOf = (p: PlaceDef) => NODES.find((n) => n.centre === p.centre) as Node
 
-/** Where a car might go next, most likely first. Roughly: errands near a place, then back to a place. */
-function candidates(rng: () => number, from: Node): Node[] {
-  const places = NODES.filter((n) => n.home === null && n !== from)
-  for (let i = places.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    ;[places[i], places[j]] = [places[j], places[i]]
+function pickPit(rng: () => number, carIdx: number): PitDef {
+  const options = ASSIGNMENTS[carIdx % ASSIGNMENTS.length]
+  let roll = rng()
+  for (const [pit, chance] of options) {
+    if (roll < chance) return pit
+    roll -= chance
   }
-  const shuffled = places
-  if (from.home) {
-    const home = nodeOf(from.home)
-    return rng() < 0.75 ? [home, ...shuffled.filter((n) => n !== home)] : [...shuffled, home]
-  }
-  if (rng() < 0.3) {
-    const near = NODES.filter((n) => n.home && n.home.centre === from.centre)
-    if (near.length > 0) return [near[Math.floor(rng() * near.length)], ...shuffled]
-  }
-  return shuffled
-}
-
-function legsWanted(rng: () => number, weekday: number): number {
-  const roll = rng()
-  if (weekday === 0 || weekday === 6) return roll < 0.6 ? 1 : 2
-  return roll < 0.12 ? 1 : roll < 0.45 ? 2 : roll < 0.8 ? 3 : 4
+  return options[options.length - 1][0]
 }
 
 export function buildHistory(todayStart: number, tz: string, carIds: string[]): History {
@@ -75,51 +51,45 @@ export function buildHistory(todayStart: number, tz: string, carIds: string[]): 
   const history: History = { trips: [], fixes: new Map(carIds.map((id) => [id, []])), gaps: [] }
   for (const day of days) {
     const weekday = localWeekday(day.start + 12 * HOUR, tz)
+    const weekend = weekday === 0 || weekday === 6
     carIds.forEach((carId, carIdx) => {
       const rng = mulberry32(hashSeed(day.start, carIdx, 7))
       if (rng() < IDLE_CHANCE[weekday]) return
-      const budget = DAILY_BUDGET_M[carIdx % DAILY_BUDGET_M.length]
-      let node: Node = rng() < 0.5 ? nodeOf(SITE) : NODES[Math.floor(rng() * PLACES.length)]
-      let t = day.start + (6 + rng() * 2.5) * HOUR
-      const wanted = legsWanted(rng, weekday)
-      let distance = 0
-      for (let i = 0; i < wanted; i++) {
-        let dest: Node | null = null
-        let length = 0
-        for (const c of candidates(rng, node)) {
-          const straight = haversineM(node.centre[0], node.centre[1], c.centre[0], c.centre[1])
-          const l = straight * (1.2 + rng() * 0.25)
-          if (distance + l <= budget) {
-            dest = c
-            length = l
-            break
-          }
-        }
-        if (!dest) break
-        const kmh = length < SHORT_LEG_M ? 28 + rng() * 10 : 36 + rng() * 10
-        const drivingMs = Math.round((length / 1000 / kmh) * 3600) * 1000
+      const pit = pickPit(rng, carIdx)
+      const legs = [roadPath(pit.road, true), roadPath(pit.road, false)]
+      let t = day.start + (6 + rng() * 0.75) * HOUR
+      const shiftEnd = t + (weekend ? 3 + rng() * 3 : 7 + rng() * 4) * HOUR
+      const breakAt = t + (shiftEnd - t) * (0.4 + rng() * 0.2)
+      let tookBreak = false
+      for (let i = 0; t < shiftEnd; i++) {
+        const loaded = i % 2 === 0
+        t += loaded ? LOAD_MS + rng() * 4 * MINUTE : DUMP_MS + rng() * 3 * MINUTE
+        const kmh = loaded ? 15 + rng() * 5 : 25 + rng() * 7
+        const path = legs[loaded ? 0 : 1]
+        const drivingMs = Math.round((path.length / 1000 / kmh) * 3600) * 1000
         const stops = pickStops(rng, drivingMs)
         const elapsed = drivingMs + stops.reduce((sum, s) => sum + s.durMs, 0)
         if (t + elapsed > day.end - 30 * MINUTE) break
         const seed = hashSeed(day.start, carIdx, i, 11)
-        const gap = pickGap(rng, drivingMs, stops)
         const built = buildTrip({
           carId,
           start: Math.round(t / 1000) * 1000,
-          path: makePath(node.centre, dest.centre, mulberry32(seed), length),
+          path,
           drivingMs,
           stops,
           intervalMs: HISTORY_INTERVAL_MS,
-          gap,
+          gap: pickGap(rng, drivingMs, stops),
           seed,
         })
         history.trips.push(built.trip)
         history.fixes.get(carId)?.push(...built.fixes)
         if (built.gap) history.gaps.push(built.gap)
-        distance += built.trip.distanceM
-        const errand = dest.home !== null
-        node = dest
-        t += elapsed + (errand ? 8 + rng() * 27 : 30 + rng() * 120) * MINUTE
+        t += elapsed
+        // Meal break at the pit, after an empty run.
+        if (!loaded && !tookBreak && t >= breakAt) {
+          t += (40 + rng() * 30) * MINUTE
+          tookBreak = true
+        }
       }
     })
   }
@@ -127,24 +97,17 @@ export function buildHistory(todayStart: number, tz: string, carIds: string[]): 
 }
 
 function pickStops(rng: () => number, drivingMs: number): StopPlan[] {
-  const roll = rng()
-  // Local hops get at most one short stop; the others get up to two.
-  const long = drivingMs >= 25 * MINUTE
-  const count = drivingMs < 12 * MINUTE || roll < 0.35 ? 0 : roll < 0.8 || !long ? 1 : 2
-  const maxMin = Math.max(2, Math.min(12, Math.round(drivingMs / MINUTE / 3)))
-  const stops: StopPlan[] = []
-  for (let i = 0; i < count; i++) {
-    const frac = count === 1 ? 0.25 + rng() * 0.5 : i === 0 ? 0.2 + rng() * 0.25 : 0.55 + rng() * 0.25
-    stops.push({ atDrivingMs: Math.round((drivingMs * frac) / 1000) * 1000, durMs: Math.round(2 + rng() * (maxMin - 2)) * MINUTE })
-  }
-  return stops
+  // A short wait on a long run, under 5 minutes so Traccar keeps it inside the trip.
+  if (drivingMs < LONG_RUN_MS || rng() >= 0.3) return []
+  const atDrivingMs = Math.round((drivingMs * (0.25 + rng() * 0.5)) / 1000) * 1000
+  return [{ atDrivingMs, durMs: Math.round(2 + rng() * 2) * MINUTE }]
 }
 
-/** Occasionally a 6 to 15 minute signal gap on a long trip, kept clear of stops. */
+/** Occasionally a 6 to 10 minute signal gap on a long run (weak coverage on the far haul road), kept clear of stops. */
 function pickGap(rng: () => number, drivingMs: number, stops: StopPlan[]): { offsetMs: number; durMs: number } | undefined {
-  if (drivingMs < 40 * MINUTE || rng() >= 0.1) return undefined
-  const durMs = Math.round(6 + rng() * 9) * MINUTE
-  const drivingOffset = drivingMs * (0.3 + rng() * 0.3)
+  if (drivingMs < LONG_RUN_MS + 6 * MINUTE || rng() >= 0.06) return undefined
+  const durMs = Math.round(6 + rng() * 4) * MINUTE
+  const drivingOffset = drivingMs * (0.25 + rng() * 0.15)
   // Stops before the gap push it later on the elapsed axis; skip the gap if it would touch one.
   const earlier = stops.filter((s) => s.atDrivingMs < drivingOffset)
   const offsetMs = drivingOffset + earlier.reduce((sum, s) => sum + s.durMs, 0)

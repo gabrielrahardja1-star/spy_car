@@ -158,7 +158,7 @@ function HistoryBody({ cars }: { cars: Car[] }) {
         <h1 className={split.title}>Route history</h1>
 
         <SegmentedControl
-          label="Car"
+          label="Truck"
           fill
           value={car.id}
           onChange={(id) => {
@@ -255,9 +255,9 @@ export function RouteHistory() {
         <section aria-label="Trips" className={split.panel}>
           <h1 className={split.title}>Route history</h1>
           {cars.status === 'ready' ? (
-            <EmptyNotice>No cars set up</EmptyNotice>
+            <EmptyNotice>No trucks set up</EmptyNotice>
           ) : (
-            <AsyncNotice state={cars} loading="Loading cars..." />
+            <AsyncNotice state={cars} loading="Loading trucks..." />
           )}
         </section>
       </main>

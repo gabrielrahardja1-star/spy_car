@@ -23,7 +23,8 @@
 // Dump truck haul cycles instead of a car (--profile dump-truck): the start is the loading point in the pit, the turning
 // point is the dump (disposal, ROM or stockpile). Each cycle: load (parked), haul loaded (slower), tip, return empty.
 //   --load-min    minutes loading/queueing at the pit (default 6; 5 or more makes Traccar end the trip there)
-//   --dump-min    minutes tipping at the dump (default 2)    --loaded-kmh  hauling speed (default 60% of --kmh)
+//   --dump-min    minutes queueing and tipping at the dump (default 5, so loaded and empty runs are separate trips)
+//   --loaded-kmh  hauling speed (default 60% of --kmh)
 //   --cycles      haul cycles in the backfill (default 4)
 // Example, mine site in South Kalimantan, pit about 1.6 km west of "Area 2" (3°10'21.04"S 115°16'54.51"E):
 //   node dev/simulate-car.mjs --host 203.0.113.10 --id dt-01 --profile dump-truck \
@@ -50,7 +51,7 @@ const truck = opt('profile', 'car') === 'dump-truck'
 const kmh = Number(opt('kmh', truck ? 30 : 40))
 const loadedKmh = Number(opt('loaded-kmh', kmh * 0.6))
 const loadMin = Number(opt('load-min', 6))
-const dumpMin = Number(opt('dump-min', 2))
+const dumpMin = Number(opt('dump-min', 5))
 const cycles = Number(opt('cycles', 4))
 const everyS = Number(opt('every', 5))
 const dryRun = flag('dry-run')

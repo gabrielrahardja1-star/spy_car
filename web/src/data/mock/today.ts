@@ -1,17 +1,22 @@
 // "Today": a scripted story anchored to the clock at creation time.
-//   Car 01: morning trip Site -> Town depot, parked at the depot, then looping back towards Site (in progress).
-//   Car 02: trip Supplier yard -> Site with a 6 minute signal gap, then parked inside Site.
+//   DT-01: haul cycles Pit W <-> Area 2 since the shift started, now on a live loop that left Pit W 6 minutes ago.
+//   DT-02: one loaded run Pit S -> Area 2, held 7 minutes at a crossing and with a 6 minute signal gap, then parked in Area 2.
 // Everything is placed relative to `anchor` (but never before the start of the local day), so it looks right at any hour.
 import type { Position, SignalGap, Trip } from '../types'
-import { DEPOT, SITE, SUPPLIER, placeAt, type PlaceDef } from './places'
-import { makePath, pointAt, toPath, type Path } from './route'
+import { PIT_S, PIT_W, SITE, placeAt } from './places'
+import { pointAt, roadPath, toPath, type Path } from './route'
 import { buildTrip, createLoopDriver, measure, tripId, type LoopDriver } from './trips'
-import { haversineM, HOUR, hashSeed, makeFix, mulberry32, MINUTE } from './util'
+import { HOUR, hashSeed, makeFix, MINUTE } from './util'
 
 export const CAR1 = 'c1'
 export const CAR2 = 'c2'
 const TODAY_INTERVAL_MS = 10_000
 export const HEARTBEAT_MS = 30_000
+/** Haul cycle timings: loading at the pit, queueing and tipping at the dump (5 min or more, so Traccar ends the trip). */
+export const LOAD_MS = 6 * MINUTE
+export const DUMP_MS = 5 * MINUTE
+export const LOADED_KMH = 18
+export const EMPTY_KMH = 28
 
 type Piece =
   | { kind: 'trip'; trip: Trip; fixes: Position[] }
@@ -31,73 +36,69 @@ export interface TodayView {
   fixes: Map<string, Position[]>
 }
 
-const straightM = (a: PlaceDef, b: PlaceDef) => haversineM(a.centre[0], a.centre[1], b.centre[0], b.centre[1])
-
 function parkAt(path: Path, atEnd: boolean, from: number, to: number): Piece {
   const pt = pointAt(path, atEnd ? path.length : 0)
   return { kind: 'park', from, to, lat: pt.lat, lon: pt.lon, course: pt.course }
 }
 
+/** Whole seconds to drive `path` at `kmh` on average. */
+export const legMs = (path: Path, kmh: number) => Math.round((path.length / 1000 / kmh) * 3600) * 1000
+
 export function buildTodayPlan(dayStart: number, anchor: number): TodayPlan {
-  const rng = mulberry32(hashSeed(dayStart, 99))
   const gaps: SignalGap[] = []
+  const loaded = roadPath(PIT_W.road, true)
+  const empty = roadPath(PIT_W.road, false)
 
-  // Car 01: the endless loop Depot -> Site -> Depot, started 58 minutes ago.
-  const liveStart = Math.max(dayStart, anchor - 58 * MINUTE)
-  const outward = makePath(DEPOT.centre, SITE.centre, mulberry32(hashSeed(dayStart, 1)), straightM(DEPOT, SITE) * 1.31)
-  const back = makePath(SITE.centre, DEPOT.centre, mulberry32(hashSeed(dayStart, 2)), straightM(DEPOT, SITE) * 1.27)
-  const loop = toPath([
-    ...outward.lat.map((la, i): [number, number] => [la, outward.lon[i]]),
-    ...back.lat.slice(1).map((la, i): [number, number] => [la, back.lon[i + 1]]),
-  ])
-  const driver = createLoopDriver(CAR1, loop, liveStart, TODAY_INTERVAL_MS, 42, hashSeed(dayStart, 3))
+  // DT-01: the endless loop Pit W -> Area 2 -> Pit W, started 6 minutes ago.
+  const liveStart = Math.max(dayStart, anchor - 6 * MINUTE)
+  const loop = toPath([...PIT_W.road, ...PIT_W.road.slice(0, -1).reverse()])
+  const driver = createLoopDriver(CAR1, loop, liveStart, TODAY_INTERVAL_MS, 26, hashSeed(dayStart, 3))
 
-  const morningEnd = Math.min(dayStart + 9 * HOUR + 5 * MINUTE, liveStart - 30 * MINUTE)
-  const morningStart = morningEnd - 83 * MINUTE
+  // Finished cycles from 06:30, each: load, loaded run, dump, empty run. The last load ends when the live loop starts.
   const car1: Piece[] = []
-  if (morningStart >= dayStart) {
-    const seed = hashSeed(dayStart, 4)
-    const path = makePath(SITE.centre, DEPOT.centre, mulberry32(seed), 41_000 * (1 + (rng() - 0.5) * 0.01))
-    const built = buildTrip({
-      carId: CAR1,
-      start: morningStart,
-      path,
-      drivingMs: 72 * MINUTE,
-      stops: [
-        { atDrivingMs: 16 * MINUTE, durMs: 3 * MINUTE },
-        { atDrivingMs: 51 * MINUTE, durMs: 8 * MINUTE },
-      ],
-      intervalMs: TODAY_INTERVAL_MS,
-      seed,
-    })
-    car1.push(parkAt(path, false, dayStart, morningStart))
-    car1.push({ kind: 'trip', trip: built.trip, fixes: built.fixes })
-    car1.push(parkAt(path, true, morningEnd, liveStart))
-  } else {
-    car1.push(parkAt(outward, false, dayStart, liveStart))
+  const loadedMs = legMs(loaded, LOADED_KMH)
+  const emptyMs = legMs(empty, EMPTY_KMH)
+  const cycleMs = LOAD_MS + loadedMs + DUMP_MS + emptyMs
+  let t = dayStart + 6 * HOUR + 30 * MINUTE
+  let parkedSince = dayStart
+  for (let i = 0; t + cycleMs + LOAD_MS <= liveStart; i++) {
+    const legs: [Path, number, number][] = [
+      [loaded, t + LOAD_MS, loadedMs],
+      [empty, t + LOAD_MS + loadedMs + DUMP_MS, emptyMs],
+    ]
+    for (const [path, start, drivingMs] of legs) {
+      const built = buildTrip({ carId: CAR1, start, path, drivingMs, stops: [], intervalMs: TODAY_INTERVAL_MS, seed: hashSeed(dayStart, 4, i, start) })
+      car1.push(parkAt(path, false, parkedSince, start))
+      car1.push({ kind: 'trip', trip: built.trip, fixes: built.fixes })
+      parkedSince = built.trip.endTime as number
+    }
+    t += cycleMs
   }
+  car1.push(parkAt(loaded, false, parkedSince, liveStart))
   car1.push({ kind: 'live', start: liveStart, driver })
 
-  // Car 02: Supplier yard -> Site, 75 minutes, with a 6 minute gap 33 minutes in.
+  // DT-02: Pit S -> Area 2 loaded, ending by 13:40: held 4 minutes in (7 min, so real Traccar splits the trip there),
+  // then a 6 minute gap 13 minutes in.
   const car2: Piece[] = []
+  const haul = roadPath(PIT_S.road, true)
+  const haulMs = legMs(haul, LOADED_KMH)
   const tripEnd = Math.min(dayStart + 13 * HOUR + 40 * MINUTE, anchor - 20 * MINUTE)
-  const tripStart = tripEnd - 75 * MINUTE
+  const holdMs = 7 * MINUTE
+  const tripStart = tripEnd - haulMs - holdMs
   if (tripStart >= dayStart) {
-    const seed = hashSeed(dayStart, 5)
-    const path = makePath(SUPPLIER.centre, SITE.centre, mulberry32(seed), 38_000 * (1 + (rng() - 0.5) * 0.01))
     const built = buildTrip({
       carId: CAR2,
       start: tripStart,
-      path,
-      drivingMs: 75 * MINUTE,
-      stops: [],
+      path: haul,
+      drivingMs: haulMs,
+      stops: [{ atDrivingMs: 4 * MINUTE, durMs: holdMs }],
       intervalMs: TODAY_INTERVAL_MS,
-      gap: { offsetMs: 33 * MINUTE, durMs: 6 * MINUTE },
-      seed,
+      gap: { offsetMs: 13 * MINUTE, durMs: 6 * MINUTE },
+      seed: hashSeed(dayStart, 5),
     })
-    car2.push(parkAt(path, false, dayStart, tripStart))
+    car2.push(parkAt(haul, false, dayStart, tripStart))
     car2.push({ kind: 'trip', trip: built.trip, fixes: built.fixes })
-    car2.push(parkAt(path, true, tripEnd, Infinity))
+    car2.push(parkAt(haul, true, tripEnd, Infinity))
     if (built.gap) gaps.push(built.gap)
   } else {
     car2.push({ kind: 'park', from: dayStart, to: Infinity, lat: SITE.centre[0], lon: SITE.centre[1], course: 0 })

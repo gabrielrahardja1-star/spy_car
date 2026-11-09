@@ -4,7 +4,8 @@ import type { Position, SignalGap, Trip } from '../types'
 import { findSignalGaps } from '../derive'
 import { addDays } from '../format'
 import { createMockDataSource } from './index'
-import { PLACES, WAYPOINTS, placeAt } from './places'
+import { PITS, SITE, placeAt } from './places'
+import { roadPath } from './route'
 import { startFeed, BUFFER_RELEASE_MS } from './live'
 import { haversineM, localDayStart, localWeekday, MINUTE, HOUR } from './util'
 
@@ -24,17 +25,18 @@ describe('mock data source', () => {
     vi.useRealTimers()
   })
 
-  it('lists two cars and three geofences with closed rings', async () => {
+  it('lists two trucks, the Area 2 site zone and three pits, with closed rings', async () => {
     const ds = createMockDataSource({ now: () => NOW })
     expect((await ds.getCars()).map((c) => [c.id, c.name, c.driver])).toEqual([
-      ['c1', 'Car 01', '[Driver name]'],
-      ['c2', 'Car 02', '[Driver name]'],
+      ['c1', 'DT-01', '[Driver name]'],
+      ['c2', 'DT-02', '[Driver name]'],
     ])
     const fences = await ds.getGeofences()
     expect(fences.map((g) => [g.name, g.kind])).toEqual([
-      ['Site', 'site'],
-      ['Town depot', 'place'],
-      ['Supplier yard', 'place'],
+      ['Area 2', 'site'],
+      ['Pit W', 'place'],
+      ['Pit N', 'place'],
+      ['Pit S', 'place'],
     ])
     for (const g of fences) expect(g.polygon[0]).toEqual(g.polygon[g.polygon.length - 1])
   })
@@ -91,7 +93,7 @@ describe('mock data source', () => {
     const open = all.filter((t) => t.endTime === null)
     expect(open).toHaveLength(1)
     expect(open[0].carId).toBe('c1')
-    expect(open[0].startPlace).toBe('Town depot')
+    expect(open[0].startPlace).toBe('Pit W')
     expect(open[0].endPlace).toBeNull()
     expect(open[0].distanceM).toBeGreaterThan(0)
     expect(all.filter((t) => t.carId === 'c2' && t.endTime === null)).toHaveLength(0)
@@ -102,24 +104,28 @@ describe('mock data source', () => {
   it("tells today's story", async () => {
     const ds = createMockDataSource({ now: () => NOW })
     const trips = await ds.getTrips(null, TODAY, NOW + 1)
-    const c1 = trips.filter((t) => t.carId === 'c1')
+    const c1 = trips.filter((t) => t.carId === 'c1' && t.endTime !== null).reverse()
     const c2 = trips.filter((t) => t.carId === 'c2')
-    expect(c1).toHaveLength(2)
+    // DT-01: alternating loaded and empty runs on the Pit W haul road since 06:36.
+    expect(c1.length).toBeGreaterThan(30)
+    c1.forEach((t, i) => {
+      expect([t.startPlace, t.endPlace]).toEqual(i % 2 === 0 ? ['Pit W', 'Area 2'] : ['Area 2', 'Pit W'])
+      expect(t.distanceM / 1000).toBeGreaterThan(1.5)
+      expect(t.distanceM / 1000).toBeLessThan(1.75)
+      expect(t.stops).toEqual([])
+      if (i > 0) expect(t.startTime - c1[i - 1].endTime!).toBeGreaterThanOrEqual(5 * MINUTE)
+    })
+    expect(c1[0].startTime).toBe(TODAY + 6 * HOUR + 36 * MINUTE)
+    // DT-02: one loaded run from Pit S.
     expect(c2).toHaveLength(1)
-    const morning = c1[1]
-    expect(morning.startPlace).toBe('Site')
-    expect(morning.endPlace).toBe('Town depot')
-    expect(morning.distanceM / 1000).toBeGreaterThan(40)
-    expect(morning.distanceM / 1000).toBeLessThan(42)
-    expect(morning.drivingMs).toBe(72 * MINUTE)
-    expect(morning.stops.map((s) => s.durationMs)).toEqual([3 * MINUTE, 8 * MINUTE])
-    expect(c2[0].startPlace).toBe('Supplier yard')
-    expect(c2[0].endPlace).toBe('Site')
+    expect([c2[0].startPlace, c2[0].endPlace]).toEqual(['Pit S', 'Area 2'])
+    expect(c2[0].distanceM / 1000).toBeGreaterThan(6.4)
+    expect(c2[0].distanceM / 1000).toBeLessThan(6.9)
     for (const t of trips) expect(t.startTime).toBeGreaterThanOrEqual(TODAY)
     const latest = await ds.getLatestPositions()
     const car1 = latest.find((p) => p.carId === 'c1')!
     expect(car1.motion).toBe(true)
-    expect(car1.speedKmh).toBeGreaterThan(20)
+    expect(car1.speedKmh).toBeGreaterThan(15)
     expect(latest.find((p) => p.carId === 'c2')!.speedKmh).toBe(0)
   })
 
@@ -283,31 +289,30 @@ describe('mock history realism', () => {
   const dayTrips = (trips: Trip[], carId: string, day: number) =>
     trips.filter((t) => t.carId === carId && t.startTime >= day && t.startTime < addDays(day, 1))
 
-  it('spreads daily distance per car from nothing up to about 110 km', async () => {
+  it('spreads daily distance per truck from nothing up to about 150 km', async () => {
     const { trips, days } = await history()
     const km = ['c1', 'c2'].flatMap((c) => days.map((d) => dayTrips(trips, c, d).reduce((s, t) => s + t.distanceM, 0) / 1000))
     const active = km.filter((x) => x > 0)
-    expect(Math.max(...km)).toBeLessThanOrEqual(115)
-    expect(Math.min(...active)).toBeLessThan(20)
-    expect(Math.max(...km)).toBeGreaterThan(80)
+    expect(Math.max(...km)).toBeLessThanOrEqual(160)
+    expect(Math.min(...active)).toBeLessThan(30)
+    expect(Math.max(...km)).toBeGreaterThan(100)
     expect(km.filter((x) => x === 0).length).toBeGreaterThan(3)
     // Not blocky: many different 10 km bands are used.
     expect(new Set(active.map((x) => Math.floor(x / 10))).size).toBeGreaterThanOrEqual(7)
   })
 
-  it('mixes long drives, errands and several trips a day', async () => {
+  it('runs haul cycles: loaded from a pit to Area 2, empty back, many a day', async () => {
     const { trips, days } = await history()
-    const lengths = trips.map((t) => t.distanceM / 1000)
-    expect(lengths.filter((l) => l < 15).length).toBeGreaterThan(5) // local hops
-    expect(lengths.filter((l) => l > 60).length).toBeGreaterThan(0) // Town depot <-> Supplier yard
     const titles = new Set(trips.map((t) => `${t.startPlace} > ${t.endPlace}`))
-    for (const pair of ['Site > Town depot', 'Town depot > Site', 'Supplier yard > Site', 'Site > Supplier yard']) expect(titles.has(pair)).toBe(true)
-    expect(titles.has('Supplier yard > Town depot') || titles.has('Town depot > Supplier yard')).toBe(true)
-    expect([...titles].some((x) => x.includes('null'))).toBe(true) // errands to unnamed places
-    expect(titles.size).toBeGreaterThanOrEqual(8)
+    expect([...titles].sort()).toEqual(
+      ['Area 2 > Pit N', 'Area 2 > Pit S', 'Area 2 > Pit W', 'Pit N > Area 2', 'Pit S > Area 2', 'Pit W > Area 2'],
+    )
+    // DT-01 never goes to Pit S, DT-02 never to Pit W.
+    expect(trips.some((t) => t.carId === 'c1' && t.startPlace === 'Pit S')).toBe(false)
+    expect(trips.some((t) => t.carId === 'c2' && t.startPlace === 'Pit W')).toBe(false)
     const perDay = ['c1', 'c2'].flatMap((c) => days.map((d) => dayTrips(trips, c, d).length))
-    expect(Math.max(...perDay)).toBe(4)
-    expect(perDay.filter((n) => n >= 3).length).toBeGreaterThan(3)
+    expect(Math.max(...perDay)).toBeGreaterThan(30)
+    expect(perDay.filter((n) => n > 0 && n < 20).length).toBeGreaterThan(3)
   })
 
   it('is quieter at weekends', async () => {
@@ -321,7 +326,7 @@ describe('mock history realism', () => {
     expect(share(true).avg).toBeLessThan(share(false).avg)
   })
 
-  it('puts a few minutes of stops inside trips, never inside a short hop', async () => {
+  it('puts short waits inside long runs only, under the 5 minute trip split', async () => {
     const { trips } = await history()
     expect(trips.filter((t) => t.stops.length > 0).length).toBeGreaterThan(10)
     for (const t of trips) {
@@ -329,7 +334,7 @@ describe('mock history realism', () => {
         expect(s.startTime).toBeGreaterThan(t.startTime)
         expect(s.endTime).toBeLessThan(t.endTime!)
         expect(s.durationMs).toBeGreaterThanOrEqual(2 * MINUTE)
-        expect(s.durationMs).toBeLessThanOrEqual(12 * MINUTE)
+        expect(s.durationMs).toBeLessThan(5 * MINUTE)
       }
       if (t.drivingMs < 12 * MINUTE) expect(t.stops).toHaveLength(0)
     }
@@ -373,10 +378,12 @@ describe('mock history realism', () => {
     }
   })
 
-  it('keeps every errand stop outside the geofences', () => {
-    for (const w of WAYPOINTS) {
-      expect(placeAt(w.centre[0], w.centre[1])).toBeNull()
-      for (const p of PLACES) expect(haversineM(w.centre[0], w.centre[1], p.centre[0], p.centre[1])).toBeGreaterThan(2500)
+  it('drives real haul roads that start in their pit and end in Area 2', () => {
+    for (const pit of PITS) {
+      const loaded = roadPath(pit.road, true)
+      expect(placeAt(loaded.lat[0], loaded.lon[0])).toBe(pit.name)
+      expect(placeAt(loaded.lat[loaded.lat.length - 1], loaded.lon[loaded.lon.length - 1])).toBe(SITE.name)
+      expect(loaded.length).toBeGreaterThan(1500)
     }
   })
 

@@ -339,7 +339,7 @@ then keeps driving live until you press Ctrl+C. The computer running it needs in
    `--kmh` (default 40), `--no-live`, `--no-history`, `--dry-run` (print the requests, send nothing). The list is at the top of the script.
 
    For a **dump truck**, add `--profile dump-truck`: the start point is the loading point in the pit, the turning point is the
-   dump. It runs haul cycles (load 6 min, haul loaded at 60% speed, tip 2 min, return empty) instead of two car trips.
+   dump. It runs haul cycles (load 6 min, haul loaded at 60% speed, queue and tip 5 min, return empty) instead of two car trips.
    Example for the pit west of Area 2 (South Kalimantan site):
 
    ```sh

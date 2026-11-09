@@ -53,7 +53,7 @@ function LogoutButton() {
 
 function Subtitle() {
   const cars = useCars()
-  return <div className={styles.appSub}>{cars.status === 'ready' ? `Purchasing · ${cars.data.length} cars` : 'Purchasing'}</div>
+  return <div className={styles.appSub}>{cars.status === 'ready' ? `Mine haulage · ${cars.data.length} trucks` : 'Mine haulage'}</div>
 }
 
 export function AppShell() {
@@ -68,7 +68,7 @@ export function AppShell() {
             </svg>
           </div>
           <div>
-            <div className={styles.appName}>Site Car Tracker</div>
+            <div className={styles.appName}>Haul Truck Tracker</div>
             <Subtitle />
           </div>
         </div>

@@ -10,10 +10,10 @@ const carButton = (name: string) => screen.getByRole('button', { name: new RegEx
 describe('LiveMap', () => {
   useFixedClock()
 
-  it('renders a card per car from the mock data source', async () => {
+  it('renders a card per truck from the mock data source', async () => {
     renderApp('/')
-    expect(await screen.findByText('Car 01')).toBeInTheDocument()
-    expect(screen.getByText('Car 02')).toBeInTheDocument()
+    expect(await screen.findByText('DT-01')).toBeInTheDocument()
+    expect(screen.getByText('DT-02')).toBeInTheDocument()
     expect(screen.getAllByText('[Driver name]').length).toBeGreaterThan(0)
   })
 
@@ -99,14 +99,14 @@ describe('LiveMap', () => {
 
   it('shows a loading note before the cars arrive', () => {
     renderApp('/', createFakeSource())
-    expect(screen.getByText('Loading cars...')).toBeInTheDocument()
+    expect(screen.getByText('Loading trucks...')).toBeInTheDocument()
   })
 })
 
 describe('LiveMap map fallback', () => {
-  it('shows the illustration naming both cars when the real map cannot start (no WebGL here)', async () => {
+  it('shows the illustration naming both trucks when the real map cannot start (no WebGL here)', async () => {
     renderApp('/')
     const map = await screen.findByRole('img', { name: /Illustrative map/ })
-    expect(map).toHaveAccessibleName(/Car 01.*Car 02/)
+    expect(map).toHaveAccessibleName(/DT-01.*DT-02/)
   })
 })

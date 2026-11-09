@@ -20,14 +20,14 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Live map' })).not.toHaveAttribute('aria-current')
   })
 
-  it('shows the number of cars from the data', async () => {
+  it('shows the number of trucks from the data', async () => {
     renderApp('/', createFakeSource({ cars: [CAR_1, CAR_2] }))
-    expect(await screen.findByText('Purchasing · 2 cars')).toBeInTheDocument()
+    expect(await screen.findByText('Mine haulage · 2 trucks')).toBeInTheDocument()
   })
 
   it('says it is waiting for data before the first live message', async () => {
     renderApp('/', createFakeSource())
-    await screen.findByText('Purchasing · 2 cars')
+    await screen.findByText('Mine haulage · 2 trucks')
     expect(screen.getByText('Live')).toBeInTheDocument()
     expect(screen.getByText('waiting for data')).toBeInTheDocument()
     expect(screen.queryByText(/updated/)).toBeNull()
@@ -36,7 +36,7 @@ describe('AppShell', () => {
   it('counts the "updated N s ago" chip up from the last message', async () => {
     const source = createFakeSource({ positions: [position(CAR_1.id, FIXED_NOW - 4000)] })
     renderApp('/', source)
-    await screen.findByText('Purchasing · 2 cars')
+    await screen.findByText('Mine haulage · 2 trucks')
 
     act(() => source.push([position(CAR_1.id, FIXED_NOW - 4000)], FIXED_NOW - 4000))
     expect(screen.getByText('updated 4 s ago')).toBeInTheDocument()
@@ -52,7 +52,7 @@ describe('AppShell', () => {
 
   it('has no log-out button in mock mode (no session)', async () => {
     renderApp('/', createFakeSource())
-    await screen.findByText('Purchasing · 2 cars')
+    await screen.findByText('Mine haulage · 2 trucks')
     expect(screen.queryByRole('button', { name: 'Log out' })).toBeNull()
   })
 
@@ -87,7 +87,7 @@ describe('AppShell', () => {
     it('says "reconnecting" only after the link was up, and "offline" for a long outage', async () => {
       const { source, linked, emit } = withConnection()
       renderApp('/', linked)
-      await screen.findByText('Purchasing · 2 cars')
+      await screen.findByText('Mine haulage · 2 trucks')
 
       emit('reconnecting') // first connect: nothing to warn about
       expect(screen.getByText('waiting for data')).toBeInTheDocument()
@@ -104,7 +104,7 @@ describe('AppShell', () => {
     it('says "offline" even before the first message', async () => {
       const { linked, emit } = withConnection()
       renderApp('/', linked)
-      await screen.findByText('Purchasing · 2 cars')
+      await screen.findByText('Mine haulage · 2 trucks')
       emit('offline')
       expect(screen.getByText('waiting for data \u00b7 offline')).toBeInTheDocument()
     })

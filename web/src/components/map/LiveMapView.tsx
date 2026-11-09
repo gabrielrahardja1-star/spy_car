@@ -36,7 +36,7 @@ export interface LiveMapViewProps {
 const PITCH_3D = 55
 const BEARING_3D = -20
 const SELECT_ZOOM = 15
-const DEFAULT_CENTER: LngLat = [119.41, -5.14]
+const DEFAULT_CENTER: LngLat = [115.2812, -3.1721] // Area 2 haul site
 const MIN_GLIDE_MS = 600
 const MAX_GLIDE_MS = 3000
 

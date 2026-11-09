@@ -60,7 +60,7 @@ const tripRow = (deviceId: number, startMin: number, endMin: number, over: objec
 
 const baseHandlers = {
   '/api/devices': () => [device(1, 'Car 01', { attributes: { driver: 'D1' } }), device(2, 'Car 02'), device(9, 'Spare', { disabled: true })],
-  '/api/geofences': () => [{ id: 1, name: 'site', area: SITE_WKT }, { id: 2, name: 'Broken', area: 'POLYGON ((x))' }],
+  '/api/geofences': () => [{ id: 1, name: 'area 2', area: SITE_WKT }, { id: 2, name: 'Broken', area: 'POLYGON ((x))' }],
 }
 
 function make(handlers: Record<string, (q: URLSearchParams) => unknown>, over: Parameters<typeof createTraccarDataSource>[0] = {}) {
@@ -86,7 +86,7 @@ describe('cars and geofences', () => {
     const { source } = make({})
     const g = await source.getGeofences()
     expect(g).toHaveLength(1)
-    expect(g[0]).toMatchObject({ name: 'site', kind: 'site' })
+    expect(g[0]).toMatchObject({ name: 'area 2', kind: 'site' })
   })
 
   it('asks the server once for several quick calls', async () => {
@@ -155,7 +155,7 @@ describe('trips', () => {
     expect(q?.getAll('deviceId')).toEqual(['1', '2'])
     expect(q?.get('from')).toBe(iso(from - 6 * HOUR).replace('.000Z', 'Z'))
     expect(trips.map((t) => t.carId)).toEqual(['2', '1']) // newest first
-    expect(trips[1]).toMatchObject({ startPlace: 'site', endPlace: null, startAddress: 'Main St', distanceM: 10_000 })
+    expect(trips[1]).toMatchObject({ startPlace: 'area 2', endPlace: null, startAddress: 'Main St', distanceM: 10_000 })
   })
 
   it('a single car is asked for on its own', async () => {
@@ -230,7 +230,7 @@ describe('the trip in progress', () => {
     const { source } = make(handlers(false))
     const trips = await source.getTrips('1', DAY_START, DAY_START + 24 * HOUR)
     expect(trips).toHaveLength(1)
-    expect(trips[0]).toMatchObject({ carId: '1', startTime: NOW - 20 * MIN, endTime: null, endPlace: null, startPlace: 'site' })
+    expect(trips[0]).toMatchObject({ carId: '1', startTime: NOW - 20 * MIN, endTime: null, endPlace: null, startPlace: 'area 2' })
     expect(trips[0].distanceM).toBeGreaterThan(1500)
     expect(trips[0].drivingMs).toBe(19 * MIN)
   })

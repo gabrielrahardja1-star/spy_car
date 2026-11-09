@@ -9,8 +9,8 @@ import { localDayStart, lowerBound } from './util'
 const VIEW_STEP_MS = 10_000
 
 export const CARS: Car[] = [
-  { id: CAR1, name: 'Car 01', driver: '[Driver name]' },
-  { id: CAR2, name: 'Car 02', driver: '[Driver name]' },
+  { id: CAR1, name: 'DT-01', driver: '[Driver name]' },
+  { id: CAR2, name: 'DT-02', driver: '[Driver name]' },
 ]
 
 export interface View {

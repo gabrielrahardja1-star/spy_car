@@ -144,12 +144,12 @@ export function LiveMap() {
 
   return (
     <main className={split.main}>
-      <section aria-label="Cars" className={split.panel}>
+      <section aria-label="Trucks" className={split.panel}>
         <div className={styles.heading}>
-          <h1>Cars</h1>
+          <h1>Trucks</h1>
           {live.status === 'ready' && <div className={styles.summary}>{summaryText(live.data)}</div>}
         </div>
-        {blocked && <AsyncNotice state={blocked} loading="Loading cars..." />}
+        {blocked && <AsyncNotice state={blocked} loading="Loading trucks..." />}
         {cars.map((c, i) => (
           <CarCard
             key={c.car.id}
