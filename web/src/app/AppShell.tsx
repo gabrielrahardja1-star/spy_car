@@ -6,13 +6,33 @@ import type { ConnectionState } from '../data/source'
 import { useSession } from './session'
 import styles from './AppShell.module.css'
 
+/** Stroke icons for the rail, 24px grid. */
+const ICONS = {
+  live: ['M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z', 'M9 3v15', 'M15 6v15'],
+  history: ['M3 12a9 9 0 1 0 2.6-6.4L3 8', 'M3 3v5h5', 'M12 7v5l3 2'],
+  dashboard: ['M3 21h18', 'M6 17v-6', 'M11 17V5', 'M16 17v-9', 'M21 17v-3'],
+  manage: ['M4 21v-7', 'M4 10V3', 'M12 21v-9', 'M12 8V3', 'M20 21v-5', 'M20 12V3', 'M1 14h6', 'M9 8h6', 'M17 16h6'],
+  logout: ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'M16 17l5-5-5-5', 'M21 12H9'],
+}
+
+function Icon({ name }: { name: keyof typeof ICONS }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONS[name].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  )
+}
+
+/** `name` is what screen readers announce; `short` fits under the icon. */
 const tabs = [
-  { to: '/', label: 'Live map', end: true },
-  { to: '/history', label: 'Route history', end: false },
-  { to: '/dashboard', label: 'Dashboard', end: false },
-]
-/** Only for admins who may change trucks or checkpoints. */
-const MANAGE_TAB = { to: '/manage', label: 'Manage', end: false }
+  { to: '/', name: 'Live map', short: 'Live', icon: 'live', end: true },
+  { to: '/history', name: 'Route history', short: 'History', icon: 'history', end: false },
+  { to: '/dashboard', name: 'Dashboard', short: 'Dashboard', icon: 'dashboard', end: false },
+] as const
+/** Only for admins who may change trucks or locations. */
+const MANAGE_TAB = { to: '/manage', name: 'Manage', short: 'Manage', icon: 'manage', end: false } as const
 
 /** Live link state from sources that have one (Traccar). Sources without one count as connected. */
 function useConnection(): ConnectionState {
@@ -36,8 +56,10 @@ function LiveChip() {
   const warning = connection === 'offline' ? 'offline' : connection === 'reconnecting' && lastMessageAt !== null ? 'reconnecting' : null
   return (
     <div className={styles.chip}>
-      <span className={styles.chipDot} aria-hidden="true" />
-      <span className={styles.chipLabel}>Live</span>
+      <span className={styles.chipLabel}>
+        <span className={styles.chipDot} aria-hidden="true" />
+        Live
+      </span>
       <span className={styles.chipAge}>{warning ? `${age} · ${warning}` : age}</span>
     </div>
   )
@@ -48,7 +70,8 @@ function LogoutButton() {
   if (!session) return null
   return (
     <button type="button" className={styles.logout} onClick={session.logout}>
-      Log out
+      <Icon name="logout" />
+      <span>Log out</span>
     </button>
   )
 }
@@ -64,29 +87,32 @@ export function AppShell() {
   const canManage = canEditTrucks || canEditLocations
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
+      <aside className={styles.rail}>
         <div className={styles.brand}>
-          <div className={styles.logo}>
+          <div className={styles.logo} title="Haul Truck Tracker">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E6F0FF" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" />
               <circle cx="12" cy="10" r="2.5" />
             </svg>
           </div>
-          <div>
+          <div className={styles.brandText}>
             <div className={styles.appName}>Haul Truck Tracker</div>
             <Subtitle />
           </div>
         </div>
         <nav aria-label="Views" className={styles.tabs}>
           {[...tabs, ...(canManage ? [MANAGE_TAB] : [])].map((t) => (
-            <NavLink key={t.to} to={t.to} end={t.end} className={styles.tab}>
-              {t.label}
+            <NavLink key={t.to} to={t.to} end={t.end} className={styles.tab} aria-label={t.name}>
+              <Icon name={t.icon} />
+              <span className={styles.tabLabel}>{t.short}</span>
             </NavLink>
           ))}
         </nav>
-        <LiveChip />
-        <LogoutButton />
-      </header>
+        <div className={styles.railFoot}>
+          <LiveChip />
+          <LogoutButton />
+        </div>
+      </aside>
       <div className={styles.main}>
         <Outlet />
       </div>

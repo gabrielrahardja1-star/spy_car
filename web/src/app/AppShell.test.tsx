@@ -28,8 +28,7 @@ describe('AppShell', () => {
   it('says it is waiting for data before the first live message', async () => {
     renderApp('/', createFakeSource())
     await screen.findByText('Mine haulage · 2 trucks')
-    expect(screen.getByText('Live')).toBeInTheDocument()
-    expect(screen.getByText('waiting for data')).toBeInTheDocument()
+    expect(screen.getByText('waiting for data').parentElement).toHaveTextContent('Live')
     expect(screen.queryByText(/updated/)).toBeNull()
   })
 

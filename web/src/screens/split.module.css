@@ -34,9 +34,9 @@
   border: 1px solid var(--line);
 }
 
-/* Wide screens: the page is one screen tall; the side panel scrolls on its own and the map keeps the full height, so
-   its controls (the playback bar) stay in view however long the list is. */
-@media (min-width: 1024px) {
+/* Wide screens (beside the 96px rail): the page is one screen tall; the side panel scrolls on its own and the map keeps
+   the full height, so its controls (the playback bar) stay in view however long the list is. */
+@media (min-width: 1000px) {
   .main {
     flex-wrap: nowrap;
     min-height: 0;
@@ -50,6 +50,7 @@
   }
 
   .map {
+    flex-basis: 480px;
     min-height: 420px;
   }
 }
