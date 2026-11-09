@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 // Adds the site's locations to Traccar in one go: the four start points and Area 2, the end point (dump).
-// The same as adding them one by one in the app's Manage tab. Locations that already exist (same name) are skipped,
-// so it is safe to run twice. Each new one is shared with every user, like the app does.
+// The same as adding them one by one in the app's Manage tab. A location that already exists (same name) is checked:
+// if its type or circle differs it is reported, and --fix sets it right. Safe to run twice. Each new one is shared with
+// every user, like the app does.
 //
 //   npm run add-locations -- --email admin@example.com
 //
 // It asks for the password (nothing is stored). By default it talks to Traccar through the SSH tunnel
 // (ssh -L 8082:localhost:8082 root@SERVER-IP, then leave that window open); --url https://your-app-address works too.
 //
-// Options: --url (default http://localhost:8082)  --email (required)  --dry-run (show what would be added, change nothing)
+// Options: --url (default http://localhost:8082)  --email (required)  --dry-run (show what would change, change nothing)
+//          --fix (also correct the type and circle of locations that already exist)
 
 import { createInterface } from 'node:readline'
 
@@ -29,6 +31,8 @@ const opt = (name, fallback) => {
 const base = opt('url', 'http://localhost:8082').replace(/\/+$/, '')
 const email = opt('email', '')
 const dryRun = args.includes('--dry-run')
+const fix = args.includes('--fix')
+const TYPE_NAME = { start: 'start point', end: 'end point', checkpoint: 'checkpoint' }
 
 if (!email) {
   console.error('Missing --email. Example: npm run add-locations -- --email admin@example.com')
@@ -49,6 +53,14 @@ function askHidden(question) {
       resolve(answer)
     })
   })
+}
+
+/** True when `area` is a circle within 1 m of the given centre and radius (Traccar may write numbers differently). */
+function sameCircle(area, lat, lon, radius) {
+  const m = /^CIRCLE\s*\(\s*(-?[\d.]+)\s+(-?[\d.]+)\s*,\s*([\d.]+)\s*\)$/i.exec(String(area).trim())
+  if (!m) return false
+  const [la, lo, r] = m.slice(1).map(Number)
+  return Math.abs(la - lat) * 110574 < 1 && Math.abs(lo - lon) * 111000 < 1 && Math.abs(r - radius) < 1
 }
 
 let cookie = ''
@@ -82,11 +94,32 @@ try {
   }
   if (!me.administrator || me.readonly) throw new Error(`${email} is not an administrator (or is read-only), so it cannot add locations.`)
 
-  const existing = new Set((await call('GET', '/api/geofences')).map((g) => g.name.trim().toLowerCase()))
-  const todo = LOCATIONS.filter(([name]) => !existing.has(name.toLowerCase()))
-  for (const [name] of LOCATIONS.filter(([n]) => existing.has(n.toLowerCase()))) console.log(`Skipped ${name}: already there.`)
+  const byName = new Map((await call('GET', '/api/geofences')).map((g) => [g.name.trim().toLowerCase(), g]))
+  const todo = LOCATIONS.filter(([name]) => !byName.has(name.toLowerCase()))
+  let wrong = 0
+  for (const [name, type, lat, lon, radius] of LOCATIONS) {
+    const g = byName.get(name.toLowerCase())
+    if (!g) continue
+    const area = `CIRCLE (${lat.toFixed(6)} ${lon.toFixed(6)}, ${radius})`
+    const hasType = String(g.attributes?.type ?? '').trim().toLowerCase()
+    const problems = []
+    if (hasType !== type) problems.push(`saved as ${TYPE_NAME[hasType] ?? 'a plain zone'}, should be ${TYPE_NAME[type]}`)
+    if (!sameCircle(g.area, lat, lon, radius)) problems.push(`shape is ${g.area.trim()}, expected ${area}`)
+    if (problems.length === 0) {
+      console.log(`OK ${name}: ${TYPE_NAME[type]}, ${radius} m.`)
+      continue
+    }
+    wrong++
+    if (fix && !dryRun) {
+      await call('PUT', `/api/geofences/${g.id}`, { ...g, area, attributes: { ...g.attributes, type } })
+      console.log(`Fixed ${name}: ${problems.join('; ')}.`)
+    } else {
+      console.log(`Needs fixing ${name}: ${problems.join('; ')}.`)
+    }
+  }
+  if (wrong > 0 && !fix) console.log(`Run again with --fix to correct ${wrong === 1 ? 'it' : 'them'}.`)
   if (todo.length === 0) {
-    console.log('Nothing to add.')
+    await call('DELETE', '/api/session').catch(() => {})
     process.exit(0)
   }
 
