@@ -163,12 +163,10 @@ function readState() {
   }
 }
 const state = readState()
-let stateSavedAt = 0
-/** Saved on every live position (so a restart never sends one twice); during a fast backfill once a minute. */
-function saveState(force = false) {
-  if (!statePath || dryRun || (!force && !clock.live && Date.now() - stateSavedAt < 60_000)) return
+/** Saved after every position sent, so a restart (even in the middle of a backfill) never sends one twice. */
+function saveState() {
+  if (!statePath || dryRun) return
   writeFileSync(statePath, JSON.stringify(state))
-  stateSavedAt = Date.now()
 }
 
 // ------------------------------------------------------------------ sending
@@ -374,10 +372,10 @@ async function runSchedule() {
     console.log(`Sent ${buffer.length} positions.`)
     buffer = null
   }
-  saveState(true)
+  saveState()
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.on(signal, () => {
-      saveState(true)
+      saveState()
       process.exit(0)
     })
   }
@@ -398,7 +396,7 @@ try {
     out = await fetchRoute([lat0, lon0], [lat1, lon1])
     back = await fetchRoute(out[out.length - 1], out[0]) // can differ from the way out (one-way streets)
     state.route = { key, out, back }
-    saveState(true)
+    saveState()
   }
   route = toPath([...out, ...back.slice(1)])
   outLen = toPath(out).length
