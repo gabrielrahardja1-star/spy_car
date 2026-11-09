@@ -189,7 +189,15 @@ async function post(tSec, p, speedKmh) {
     console.log(url)
     return
   }
-  const res = await fetch(url, { method: 'POST' })
+  let res = await fetch(url, { method: 'POST' })
+  // 400 = Traccar does not know this device (yet). Wait for it to be added instead of failing over and over.
+  for (let waited = 0; res.status === 400 && scheduled; waited++) {
+    if (waited % 10 === 0) {
+      console.log(`Traccar does not know a device with ID "${id}" yet. Add it in the app (Manage > Trucks > Add truck, Test truck, Simulator); trying again every minute.`)
+    }
+    await sleep(60_000)
+    res = await fetch(url, { method: 'POST' })
+  }
   if (!res.ok) throw new Error(`Server answered ${res.status} for ${url}`)
   state.lastSent = Math.max(state.lastSent ?? 0, Math.round(tSec))
   saveState()
