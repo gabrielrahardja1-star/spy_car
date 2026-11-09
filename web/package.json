@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "fake-traccar": "node dev/fake-traccar.mjs",
-    "simulate-car": "node dev/simulate-car.mjs"
+    "simulate-car": "node dev/simulate-car.mjs",
+    "add-locations": "node dev/add-locations.mjs"
   },
   "dependencies": {
     "@deck.gl/core": "~9.4.0",
