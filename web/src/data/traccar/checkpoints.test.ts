@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FakeSocket } from '../../test/fakeSocket'
-import type { TraccarGeofence, TraccarUser } from './api'
+import type { TraccarDevice, TraccarGeofence, TraccarUser } from './api'
 import { createTraccarDataSource } from './dataSource'
 
 interface Call {
@@ -16,6 +16,10 @@ function server(opts: { me?: TraccarUser | null; users?: TraccarUser[]; refuse?:
   let geofences: TraccarGeofence[] = [
     { id: 7, name: 'Area 2', area: 'POLYGON ((-3.17 115.28, -3.18 115.28, -3.18 115.29))' },
     { id: 8, name: 'CP1 Gate', area: 'CIRCLE (-3.172592 115.279189, 30)', attributes: { type: 'checkpoint', color: 'red' } },
+  ]
+  let devices: TraccarDevice[] = [
+    { id: 1, name: 'DT-01', uniqueId: 'dt-01', attributes: { driver: 'Budi', speedLimit: 30 } },
+    { id: 2, name: 'DT-02', uniqueId: 'dt-02', disabled: true },
   ]
   const calls: Call[] = []
   const json = (status: number, body?: unknown) =>
@@ -42,6 +46,21 @@ function server(opts: { me?: TraccarUser | null; users?: TraccarUser[]; refuse?:
     }
     if (one && method === 'DELETE') {
       geofences = geofences.filter((g) => g.id !== Number(one[1]))
+      return json(204)
+    }
+    if (path === '/api/devices' && method === 'GET') return json(200, devices)
+    if (path === '/api/devices' && method === 'POST') {
+      const created = { ...(body as TraccarDevice), id: 3 }
+      devices = [...devices, created]
+      return json(200, created)
+    }
+    const device = /^\/api\/devices\/(\d+)$/.exec(path)
+    if (device && method === 'PUT') {
+      devices = devices.map((d) => (d.id === Number(device[1]) ? (body as TraccarDevice) : d))
+      return json(200, body)
+    }
+    if (device && method === 'DELETE') {
+      devices = devices.filter((d) => d.id !== Number(device[1]))
       return json(204)
     }
     if (path === '/api/permissions' && method === 'POST') return json(204)
@@ -103,5 +122,60 @@ describe('checkpoint editing against Traccar', () => {
     const { source } = server({ refuse: 403 })
     await expect(source.checkpoints!.remove('8')).rejects.toMatchObject({ status: 403 })
     expect((await source.getGeofences()).map((g) => g.name)).toEqual(['Area 2', 'CP1 Gate'])
+  })
+})
+
+describe('truck management against Traccar', () => {
+  it('lists every truck, disabled ones too, while the app shows only enabled ones', async () => {
+    const { source } = server()
+    expect(await source.trucks!.list()).toEqual([
+      { id: '1', name: 'DT-01', trackerId: 'dt-01', driver: 'Budi', enabled: true },
+      { id: '2', name: 'DT-02', trackerId: 'dt-02', driver: '', enabled: false },
+    ])
+    expect((await source.getCars()).map((c) => c.name)).toEqual(['DT-01'])
+  })
+
+  it('adds a truck, shares it with every other user and shows it at once', async () => {
+    const { source, changes } = server()
+    await source.getCars()
+    let told = 0
+    source.onCarsChange!(() => told++)
+    await source.trucks!.save({ name: ' DT-03 ', trackerId: ' 358480081234567 ', driver: '' })
+    expect(changes()).toEqual([
+      { method: 'POST', path: '/api/devices', body: { name: 'DT-03', uniqueId: '358480081234567', attributes: {} } },
+      { method: 'POST', path: '/api/permissions', body: { userId: 2, deviceId: 3 } },
+      { method: 'POST', path: '/api/permissions', body: { userId: 3, deviceId: 3 } },
+    ])
+    expect(told).toBe(1)
+    expect((await source.getCars()).map((c) => c.name)).toEqual(['DT-01', 'DT-03'])
+  })
+
+  it('refuses a tracker ID another truck already has, before asking the server', async () => {
+    const { source, changes } = server()
+    await expect(source.trucks!.save({ name: 'DT-03', trackerId: 'DT-02', driver: '' })).rejects.toThrow(
+      'Tracker ID DT-02 is already used by DT-02.',
+    )
+    expect(changes()).toEqual([])
+  })
+
+  it('edits in place, keeping other attributes; an empty driver removes the label', async () => {
+    const { source, changes } = server()
+    await source.trucks!.save({ name: 'DT-01', trackerId: 'dt-01', driver: '' }, '1')
+    expect(changes()).toEqual([
+      { method: 'PUT', path: '/api/devices/1', body: { id: 1, name: 'DT-01', uniqueId: 'dt-01', attributes: { speedLimit: 30 } } },
+    ])
+  })
+
+  it('disables and enables without losing anything, and deletes on request', async () => {
+    const { source, changes } = server()
+    await source.trucks!.setEnabled('1', false)
+    await source.trucks!.setEnabled('2', true)
+    await source.trucks!.remove('1')
+    expect(changes().map((c) => [c.method, c.path, (c.body as TraccarDevice | undefined)?.disabled])).toEqual([
+      ['PUT', '/api/devices/1', true],
+      ['PUT', '/api/devices/2', false],
+      ['DELETE', '/api/devices/1', undefined],
+    ])
+    expect((await source.getCars()).map((c) => c.name)).toEqual(['DT-02'])
   })
 })

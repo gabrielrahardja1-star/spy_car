@@ -159,3 +159,14 @@
   width: 100%;
   font-size: 13px;
 }
+
+.muted {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

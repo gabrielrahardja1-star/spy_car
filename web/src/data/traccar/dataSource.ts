@@ -11,7 +11,7 @@
 //    where the current drive began.
 import { config as appConfig, type Config } from '../../config'
 import { carStatus, sortPositions, summarizeTrips } from '../derive'
-import type { CheckpointEditor, ConnectionState, DataSource } from '../source'
+import { EditRefused, truckInputProblem, type CheckpointEditor, type ConnectionState, type DataSource, type TruckEditor, type TruckRecord } from '../source'
 import type { Car, Geofence, Position, Stop, Summary, Trip } from '../types'
 import type { TraccarDevice, TraccarGeofence, TraccarPosition, TraccarSocketMessage, TraccarStop, TraccarTrip, TraccarUser } from './api'
 import { createTraccarAuth, type TraccarAuth } from './auth'
@@ -103,10 +103,8 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
     }
     return Object.assign(get, { reset: () => (entry = null) })
   }
-  const getCars = cached(async (): Promise<Car[]> => {
-    const devices = await http.getJson<TraccarDevice[]>('/api/devices')
-    return devices.filter((d) => !d.disabled).map(toCar)
-  })
+  const getDevices = cached(() => http.getJson<TraccarDevice[]>('/api/devices'))
+  const getCars = async (): Promise<Car[]> => (await getDevices()).filter((d) => !d.disabled).map(toCar)
   const getRawGeofences = cached(() => http.getJson<TraccarGeofence[]>('/api/geofences'))
   const getGeofences = async (): Promise<Geofence[]> => toGeofences(await getRawGeofences(), cfg)
 
@@ -124,22 +122,22 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
       throw e
     }
   }
+  const isEditor = async () => {
+    const user = await sessionUser()
+    return user?.administrator === true && user.readonly !== true
+  }
+  /** Traccar links a new object to its creator only; link it to every other user so they see it too. */
+  async function shareWithEveryone(link: Record<string, number>) {
+    const [me, users] = await Promise.all([sessionUser(), http.getJson<TraccarUser[]>('/api/users')])
+    for (const u of users.filter((u) => u.id !== me?.id)) await http.send('POST', '/api/permissions', { userId: u.id, ...link })
+  }
   const checkpoints: CheckpointEditor = {
-    async canEdit() {
-      const user = await sessionUser()
-      return user?.administrator === true && user.readonly !== true
-    },
+    canEdit: isEditor,
     async save(input, id) {
       const fields = { name: input.name.trim(), area: circleWkt(input.lat, input.lon, input.radiusM) }
       if (id === undefined) {
         const created = await http.send<TraccarGeofence>('POST', '/api/geofences', { ...fields, attributes: { type: 'checkpoint' } })
-        // Traccar links a new geofence to its creator only; link it to every other user so they see it too.
-        const [me, users] = await Promise.all([sessionUser(), http.getJson<TraccarUser[]>('/api/users')])
-        if (created) {
-          for (const u of users.filter((u) => u.id !== me?.id)) {
-            await http.send('POST', '/api/permissions', { userId: u.id, geofenceId: created.id })
-          }
-        }
+        if (created) await shareWithEveryone({ geofenceId: created.id })
       } else {
         const current = (await getRawGeofences()).find((g) => String(g.id) === id)
         if (!current) throw new Error(`Checkpoint ${id} no longer exists`)
@@ -150,6 +148,59 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
     async remove(id) {
       await http.send('DELETE', `/api/geofences/${id}`)
       geofencesChanged()
+    },
+  }
+
+  // --- trucks: admins add, change, disable and delete them ------------------------------------------------------
+  const carListeners = new Set<() => void>()
+  const carsChanged = () => {
+    getDevices.reset()
+    for (const l of carListeners) l()
+  }
+  const toRecord = (d: TraccarDevice): TruckRecord => ({
+    id: String(d.id),
+    name: d.name,
+    trackerId: d.uniqueId ?? '',
+    driver: toCar(d).driver,
+    enabled: !d.disabled,
+  })
+  const deviceById = async (id: string): Promise<TraccarDevice> => {
+    getDevices.reset()
+    const device = (await getDevices()).find((d) => String(d.id) === id)
+    if (!device) throw new EditRefused('That truck no longer exists. Reload the page.')
+    return device
+  }
+  const trucks: TruckEditor = {
+    canEdit: isEditor,
+    async list() {
+      return (await getDevices()).map(toRecord).sort((a, b) => a.name.localeCompare(b.name))
+    },
+    async save(input, id) {
+      getDevices.reset()
+      const others = (await getDevices()).map(toRecord).filter((t) => t.id !== id)
+      const problem = truckInputProblem(input, others)
+      if (problem) throw new EditRefused(problem)
+      const name = input.name.trim()
+      const uniqueId = input.trackerId.trim()
+      const driver = input.driver.trim()
+      if (id === undefined) {
+        const created = await http.send<TraccarDevice>('POST', '/api/devices', { name, uniqueId, attributes: driver ? { driver } : {} })
+        if (created) await shareWithEveryone({ deviceId: created.id })
+      } else {
+        const current = await deviceById(id)
+        const { driver: _old, driverName: _oldName, ...attributes } = current.attributes ?? {}
+        await http.send('PUT', `/api/devices/${id}`, { ...current, name, uniqueId, attributes: driver ? { ...attributes, driver } : attributes })
+      }
+      carsChanged()
+    },
+    async setEnabled(id, enabled) {
+      const current = await deviceById(id)
+      await http.send('PUT', `/api/devices/${id}`, { ...current, disabled: !enabled })
+      carsChanged()
+    },
+    async remove(id) {
+      await http.send('DELETE', `/api/devices/${id}`)
+      carsChanged()
     },
   }
 
@@ -336,6 +387,11 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
     getCars,
     getGeofences,
     checkpoints,
+    trucks,
+    onCarsChange(listener) {
+      carListeners.add(listener)
+      return () => carListeners.delete(listener)
+    },
     onGeofencesChange(listener) {
       geofenceListeners.add(listener)
       return () => geofenceListeners.delete(listener)

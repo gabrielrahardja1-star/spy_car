@@ -4,6 +4,7 @@ import type { Car, Geofence, LiveCar, Position, SignalGap, Summary, Trip } from 
 import { config } from '../config'
 import { findSignalGaps, toLiveCar } from './derive'
 import { useDataSource, useLiveStore } from './DataProvider'
+import type { TruckRecord } from './source'
 
 export type Async<T> = { status: 'loading' } | { status: 'error'; error: Error } | { status: 'ready'; data: T }
 
@@ -76,9 +77,32 @@ export function useNow(intervalMs = 1000): number {
   return now
 }
 
+/** Bumps whenever the source reports the trucks changed, so hooks that list them load again. */
+function useCarsVersion(): number {
+  const source = useDataSource()
+  const [version, setVersion] = useState(0)
+  useEffect(() => source.onCarsChange?.(() => setVersion((v) => v + 1)), [source])
+  return version
+}
+
 export function useCars(): Async<Car[]> {
   const source = useDataSource()
-  return useAsync(() => source.getCars(), [source])
+  const version = useCarsVersion()
+  return useAsync(() => source.getCars(), [source, version])
+}
+
+/** Every truck for the admin list (disabled ones included), reloaded after each change. */
+export function useTruckRecords(): Async<TruckRecord[]> {
+  const source = useDataSource()
+  const version = useCarsVersion()
+  return useAsync(() => source.trucks?.list() ?? Promise.resolve([]), [source, version])
+}
+
+/** Whether the signed-in user may add and change trucks. False while unknown and for sources without editing. */
+export function useCanEditTrucks(): boolean {
+  const source = useDataSource()
+  const result = useAsync(() => source.trucks?.canEdit() ?? Promise.resolve(false), [source])
+  return result.status === 'ready' && result.data
 }
 
 export function useGeofences(): Async<Geofence[]> {
@@ -104,7 +128,8 @@ export function useLiveCars(): Async<LiveCar[]> {
   const source = useDataSource()
   const store = useLiveStore()
 
-  // Initial load: cars, latest fixes, and a short history per car. Everything goes into the shared buffer.
+  const carsVersion = useCarsVersion()
+  // Initial load (again after a truck change): cars, latest fixes, and a short history per car, into the shared buffer.
   const boot = useAsync(async () => {
     const [cars, latest] = await Promise.all([source.getCars(), source.getLatestPositions()])
     const to = Date.now() + 1
@@ -120,7 +145,7 @@ export function useLiveCars(): Async<LiveCar[]> {
       if (ends.length > 0) lastTripEnd.set(c.id, Math.max(...ends))
     })
     return { cars, lastTripEnd }
-  }, [source, store])
+  }, [source, store, carsVersion])
 
   const version = useSyncExternalStore(store.subscribe, store.getVersion)
   const now = useNow()

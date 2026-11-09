@@ -15,6 +15,20 @@
   color: var(--muted);
 }
 
+.manage {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--blue);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.manage:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
 .carButton {
   display: block;
   width: 100%;

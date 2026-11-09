@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import { CAR_1, CAR_2, createFakeSource, position, trip } from '../../test/fakeSource'
@@ -163,6 +163,48 @@ describe('LiveMap checkpoints', () => {
     await userEvent.click(within(edited).getByRole('button', { name: 'Delete' }))
     expect(await screen.findByRole('button', { name: 'Checkpoints (4)' })).toBeInTheDocument()
     expect(within(screen.getByRole('list', { name: 'Checkpoints' })).queryByText('CP5 Tip face')).toBeNull()
+  })
+})
+
+describe('LiveMap truck management', () => {
+  useFixedClock()
+
+  it('hides Manage trucks when the source cannot edit', async () => {
+    renderApp('/', createFakeSource({ positions: [position(CAR_1.id, FIXED_NOW - 1000)] }))
+    await screen.findByText('Car 01')
+    expect(screen.queryByRole('button', { name: 'Manage trucks' })).toBeNull()
+  })
+
+  it('adds a truck, refuses a duplicate tracker ID, disables a truck and deletes one after a warning', async () => {
+    renderApp('/')
+    await userEvent.click(await screen.findByRole('button', { name: 'Manage trucks' }))
+    const list = await screen.findByRole('list', { name: 'All trucks' })
+    expect(list).toHaveTextContent('DT-01')
+    expect(list).toHaveTextContent('Tracker ID dt-01')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add truck' }))
+    await userEvent.type(screen.getByLabelText('Name'), 'DT-03')
+    await userEvent.type(screen.getByLabelText('Tracker ID'), 'dt-02')
+    await userEvent.click(screen.getByRole('button', { name: 'Save truck' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Tracker ID dt-02 is already used by DT-02.')
+    await userEvent.clear(screen.getByLabelText('Tracker ID'))
+    await userEvent.type(screen.getByLabelText('Tracker ID'), 'dt-03')
+    await userEvent.click(screen.getByRole('button', { name: 'Save truck' }))
+    expect(await within(screen.getByRole('list', { name: 'All trucks' })).findByText(/^DT-03/)).toBeInTheDocument()
+
+    const row = (name: string) => within(screen.getByRole('list', { name: 'All trucks' })).getByText(new RegExp(`^${name}`)).closest('li')!
+    await userEvent.click(within(row('DT-02')).getByRole('button', { name: 'Disable' }))
+    expect(await within(row('DT-02')).findByText('· Disabled')).toBeInTheDocument()
+
+    await userEvent.click(within(row('DT-03')).getByRole('button', { name: 'Delete' }))
+    expect(row('DT-03')).toHaveTextContent('This cannot be undone. To keep its history, disable it instead.')
+    await userEvent.click(within(row('DT-03')).getByRole('button', { name: 'Delete for good' }))
+    await waitFor(() => expect(screen.getByRole('list', { name: 'All trucks' })).not.toHaveTextContent('DT-03'))
+
+    // Back on the truck cards, the disabled truck is gone.
+    await userEvent.click(screen.getByRole('button', { name: 'Done' }))
+    expect(await screen.findByText('DT-01')).toBeInTheDocument()
+    expect(screen.queryByText('DT-02')).toBeNull()
   })
 })
 

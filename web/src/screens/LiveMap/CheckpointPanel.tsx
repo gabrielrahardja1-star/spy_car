@@ -5,7 +5,7 @@ import type { CheckpointEditor } from '../../data/source'
 import { TraccarHttpError } from '../../data/traccar/http'
 import type { Geofence } from '../../data/types'
 import { formCircle, MAX_RADIUS_M, MIN_RADIUS_M, newForm, problemOf, type CheckpointForm } from './checkpointForm'
-import styles from './CheckpointPanel.module.css'
+import styles from './adminPanel.module.css'
 
 function failureText(e: unknown, action: 'save' | 'delete'): string {
   if (e instanceof TraccarHttpError && (e.status === 401 || e.status === 403)) {

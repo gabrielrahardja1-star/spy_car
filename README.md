@@ -199,14 +199,13 @@ The admin screen of Traccar is deliberately **not** on the internet. You reach i
    *Why:* once the admin exists, anyone who could open the register page could otherwise create an account.
    (Extra protection already in place: the public domain refuses every change except login and logout, and the admin screen is not public.)
 
-5. **Add the two cars.** Log in again as admin. *Settings > Devices > +*.
-
-   | Name | Identifier |
-   |---|---|
-   | `Car 01` | the phone-app ID (for the test) or the tracker's **IMEI** (printed on the tracker; 15 digits) |
-   | `Car 02` | same, for the second car |
-
-   The identifier must match exactly what the device sends, or Traccar ignores its messages.
+5. **Add the trucks** — in the app, not here: sign in to the app as admin, open the Live map and press **Manage trucks**,
+   then **Add truck**. Give it a name (`DT-01`) and its **Tracker ID**: the IMEI printed on the tracker (15 digits), the
+   ID shown in the Traccar Client phone app, or the simulator's `--id`. It must match exactly, or Traccar ignores the
+   truck's positions. The app shares each new truck with every user.
+   - **Disable** hides a truck from every screen but keeps its history (Enable brings it back).
+     **Delete** also deletes every position it ever sent, and cannot be undone.
+   - Only an administrator who is not read-only sees *Manage trucks* (see step 7 for marking users read-only).
 
 6. **Draw ONE geofence named exactly `Site`.** Open *Geofences* (map menu or *Settings > Geofences*), add an area
    (polygon or circle) around the work site, and name it **`Site`** (capital S, nothing else).

@@ -48,17 +48,18 @@
 	#
 	# The public side is READ-ONLY apart from:
 	#   - login/logout (/api/session);
-	#   - checkpoints: creating, changing and deleting geofences (/api/geofences), and POST
-	#     /api/permissions to share a new one with every user. Traccar itself refuses these for
-	#     anyone who is not signed in, and for users marked "Readonly" (set that on every user who
-	#     should only look). It also only lets a user link objects they already manage.
-	# So strangers cannot create users or change devices or settings through the public domain,
+	#   - checkpoints and trucks: creating, changing and deleting geofences (/api/geofences) and
+	#     devices (/api/devices), and POST /api/permissions to share a new one with every user.
+	#     Traccar itself refuses these for anyone who is not signed in, and for users marked
+	#     "Readonly" (set that on every user who should only look). It also only lets a user link
+	#     objects they already manage.
+	# So strangers cannot create users or change settings through the public domain,
 	# even if Traccar registration were left on. Everything else goes through the SSH tunnel to
 	# port 8082, which does not pass here. If the app needs another write call, relax @write below.
 	handle /api/* {
 		@write {
 			not path /api/session
-			not path /api/geofences /api/geofences/*
+			not path /api/geofences /api/geofences/* /api/devices /api/devices/*
 			not {
 				path /api/permissions
 				method POST

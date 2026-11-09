@@ -1,7 +1,7 @@
 // OWNED BY: mock agent. Deterministic mock DataSource (PLAN.md Phase 2).
 import { config } from '../../config'
-import type { DataSource } from '../source'
-import type { Stop, Summary, Trip } from '../types'
+import { EditRefused, truckInputProblem, type DataSource, type TruckRecord } from '../source'
+import type { Car, Stop, Summary, Trip } from '../types'
 import { startFeed } from './live'
 import { checkpointGeofence } from './places'
 import { createWorld } from './world'
@@ -23,8 +23,23 @@ export function createMockDataSource(opts: MockOptions = {}): DataSource {
   const tickMs = opts.tickMs ?? 2000
   const world = createWorld(now, config.timezone)
 
+  // Truck edits live in memory until the page reloads. A new truck has no data; a disabled one is hidden everywhere.
+  let fleet: TruckRecord[] = world.cars.map((c, i) => ({ ...c, trackerId: `dt-0${i + 1}`, enabled: true }))
+  let nextTruck = 1
+  const carListeners = new Set<() => void>()
+  const carsChanged = () => {
+    for (const l of carListeners) l()
+  }
+  const activeCars = (): Car[] => fleet.filter((t) => t.enabled).map(({ id, name, driver }) => ({ id, name, driver }))
+  const isActive = (carId: string) => fleet.some((t) => t.id === carId && t.enabled)
+  const truckAt = (id: string) => {
+    const truck = fleet.find((t) => t.id === id)
+    if (!truck) throw new EditRefused('That truck no longer exists. Reload the page.')
+    return truck
+  }
+
   const tripsIn = (carId: string | null, from: number, to: number): Trip[] =>
-    world.view().trips.filter((t) => (carId === null || t.carId === carId) && overlaps(t, from, to))
+    world.view().trips.filter((t) => (carId === null ? isActive(t.carId) : t.carId === carId) && overlaps(t, from, to))
 
   // Checkpoint edits live in memory until the page reloads. Trips keep their places (checkpoints never name one).
   const geofenceListeners = new Set<() => void>()
@@ -34,7 +49,32 @@ export function createMockDataSource(opts: MockOptions = {}): DataSource {
   }
 
   return {
-    getCars: async () => world.cars.slice(),
+    getCars: async () => activeCars(),
+    trucks: {
+      canEdit: async () => true,
+      list: async () => fleet.map((t) => ({ ...t })).sort((a, b) => a.name.localeCompare(b.name)),
+      async save(input, id) {
+        const problem = truckInputProblem(input, fleet.filter((t) => t.id !== id))
+        if (problem) throw new EditRefused(problem)
+        const fields = { name: input.name.trim(), trackerId: input.trackerId.trim(), driver: input.driver.trim() }
+        if (id === undefined) fleet = [...fleet, { id: `new-${nextTruck++}`, ...fields, enabled: true }]
+        else fleet = fleet.map((t) => (t.id === truckAt(id).id ? { ...t, ...fields } : t))
+        carsChanged()
+      },
+      async setEnabled(id, enabled) {
+        truckAt(id)
+        fleet = fleet.map((t) => (t.id === id ? { ...t, enabled } : t))
+        carsChanged()
+      },
+      async remove(id) {
+        fleet = fleet.filter((t) => t.id !== id)
+        carsChanged()
+      },
+    },
+    onCarsChange(listener) {
+      carListeners.add(listener)
+      return () => carListeners.delete(listener)
+    },
     getGeofences: async () => world.geofences.slice(),
     checkpoints: {
       canEdit: async () => true,
@@ -56,14 +96,14 @@ export function createMockDataSource(opts: MockOptions = {}): DataSource {
       geofenceListeners.add(listener)
       return () => geofenceListeners.delete(listener)
     },
-    getLatestPositions: async () => world.view().latest(),
+    getLatestPositions: async () => world.view().latest().filter((p) => isActive(p.carId)),
 
     subscribe(handlers) {
       const view = () => world.view()
       return startFeed(
         {
           now,
-          carIds: world.cars.map((c) => c.id),
+          carIds: activeCars().map((c) => c.id),
           get gaps() {
             return view().gaps
           },
@@ -85,7 +125,7 @@ export function createMockDataSource(opts: MockOptions = {}): DataSource {
     },
 
     getSummary: async (from, to) =>
-      world.cars.map((car): Summary => {
+      activeCars().map((car): Summary => {
         const trips = tripsIn(car.id, from, to)
         return {
           carId: car.id,
