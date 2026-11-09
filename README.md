@@ -214,6 +214,13 @@ The admin screen of Traccar is deliberately **not** on the internet. You reach i
    from the geofences they start and end in. If the name differs, the zone does not show.
    (The name is a setting: `VITE_SITE_GEOFENCE_NAME`. A rebuild is needed to change it.)
 
+7. **Checkpoints** (gates, ramps, the dump entrance). Draw a small geofence (a circle of about 30 m on the road works well)
+   per checkpoint and give it a short name such as `CP1 West gate`. Then, in the same geofence form, open **Attributes**,
+   add a custom attribute named `type` with the value `checkpoint`, and save. The app then shows it with a flag on the map,
+   logs every pass in Route history ("Passed CP1 West gate") and shows each truck's last pass on the Live map.
+   Passes are worked out in the app from the trucks' positions, so no Traccar notification setup is needed, and a
+   checkpoint added later also shows passes in older history. Pits and other areas are plain geofences (no attribute).
+
 7. **Create the shared viewer account.** *Settings > Users > +*. Use a placeholder email such as `viewer@example.com`
    (or a real shared mailbox), a long unique password, and tick **Readonly**.
    A read-only user can look at everything assigned to it but cannot add, change or delete anything.

@@ -30,8 +30,8 @@ export function pointInRing(lon: number, lat: number, ring: [number, number][]):
   return inside
 }
 
-/** Name of the geofence containing the point (the site zone wins over other places), or null. */
+/** Name of the geofence containing the point (the site zone wins over other places; checkpoints never count), or null. */
 export function geofenceNameAt(lat: number, lon: number, geofences: Geofence[]): string | null {
-  const hits = geofences.filter((g) => pointInRing(lon, lat, g.polygon))
+  const hits = geofences.filter((g) => g.kind !== 'checkpoint' && pointInRing(lon, lat, g.polygon))
   return (hits.find((g) => g.kind === 'site') ?? hits[0])?.name ?? null
 }

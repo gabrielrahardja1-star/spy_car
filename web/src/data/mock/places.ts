@@ -7,7 +7,7 @@ import { pointInRing } from './util'
 export interface PlaceDef {
   id: string
   name: string
-  kind: 'site' | 'place'
+  kind: 'site' | 'place' | 'checkpoint'
   /** [lat, lon] */
   centre: [number, number]
   /** Outline as metre offsets [east, north] from the centre. */
@@ -19,7 +19,7 @@ export const SITE: PlaceDef = {
   name: 'Area 2',
   kind: 'site',
   centre: PIT_W_ROAD[PIT_W_ROAD.length - 1],
-  outline: [[-260, -90], [-150, -260], [160, -240], [300, -40], [220, 230], [-120, 270], [-280, 110]],
+  outline: [[-190, -65], [-110, -190], [115, -175], [215, -30], [160, 165], [-85, 195], [-200, 80]],
 }
 
 export interface PitDef extends PlaceDef {
@@ -37,6 +37,21 @@ export const PITS: PitDef[] = [PIT_W, PIT_N, PIT_S]
 
 export const PLACES: PlaceDef[] = [SITE, ...PITS]
 
+/** A 30 m circle as metre offsets. */
+const CHECKPOINT_OUTLINE: [number, number][] = Array.from({ length: 16 }, (_, i): [number, number] => [
+  Math.round(30 * Math.sin((i * Math.PI) / 8)),
+  Math.round(30 * Math.cos((i * Math.PI) / 8)),
+])
+const checkpoint = (id: string, name: string, centre: [number, number]): PlaceDef => ({ id, name, kind: 'checkpoint', centre, outline: CHECKPOINT_OUTLINE })
+
+/** Example checkpoints on the haul roads, until the real ones are known. Not places: trips never start or end "at" one. */
+export const CHECKPOINTS: PlaceDef[] = [
+  checkpoint('g-cp1', 'CP1 West gate', [-3.172592, 115.279189]), // Pit W and Pit N trucks, just outside Area 2
+  checkpoint('g-cp2', 'CP2 South gate', [-3.174385, 115.281022]), // Pit S trucks, just outside Area 2
+  checkpoint('g-cp3', 'CP3 Pit W ramp', [-3.170372, 115.271208]),
+  checkpoint('g-cp4', 'CP4 South haul road', [-3.196313, 115.278824]),
+]
+
 function toPolygon(p: PlaceDef): [number, number][] {
   const [lat0, lon0] = p.centre
   const mPerLon = 111320 * Math.cos((lat0 * Math.PI) / 180)
@@ -46,7 +61,7 @@ function toPolygon(p: PlaceDef): [number, number][] {
 }
 
 export function buildGeofences(): Geofence[] {
-  return PLACES.map((p) => ({ id: p.id, name: p.name, kind: p.kind, polygon: toPolygon(p) }))
+  return [...PLACES, ...CHECKPOINTS].map((p) => ({ id: p.id, name: p.name, kind: p.kind, polygon: toPolygon(p) }))
 }
 
 const polygons = PLACES.map((p) => ({ name: p.name, ring: toPolygon(p) }))

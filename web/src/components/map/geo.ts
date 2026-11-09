@@ -11,8 +11,8 @@ export function pointInPolygon(lon: number, lat: number, ring: [number, number][
   return inside
 }
 
-/** The geofence containing the point. The work-site zone wins over other places when they overlap. */
+/** The geofence containing the point. The work-site zone wins over other places when they overlap; checkpoints never count. */
 export function geofenceAt(lon: number, lat: number, geofences: Geofence[]): Geofence | null {
-  const hits = geofences.filter((g) => pointInPolygon(lon, lat, g.polygon))
+  const hits = geofences.filter((g) => g.kind !== 'checkpoint' && pointInPolygon(lon, lat, g.polygon))
   return hits.find((g) => g.kind === 'site') ?? hits[0] ?? null
 }

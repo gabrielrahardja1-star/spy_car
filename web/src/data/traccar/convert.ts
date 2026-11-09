@@ -39,7 +39,10 @@ export function toPosition(p: TraccarPosition, cfg: Config = config): Position |
   }
 }
 
-/** Geofences with a usable shape. The one named like cfg.siteGeofenceName (case-insensitive) is the site zone. */
+/**
+ * Geofences with a usable shape. The one named like cfg.siteGeofenceName (case-insensitive) is the site zone; one with
+ * the attribute type = checkpoint (case-insensitive) is a checkpoint.
+ */
 export function toGeofences(list: TraccarGeofence[], cfg: Config = config): Geofence[] {
   const siteName = cfg.siteGeofenceName.trim().toLowerCase()
   const out: Geofence[] = []
@@ -49,7 +52,12 @@ export function toGeofences(list: TraccarGeofence[], cfg: Config = config): Geof
     out.push({
       id: String(g.id),
       name: g.name,
-      kind: g.name.trim().toLowerCase() === siteName ? 'site' : 'place',
+      kind:
+        g.name.trim().toLowerCase() === siteName
+          ? 'site'
+          : String(g.attributes?.type ?? '').trim().toLowerCase() === 'checkpoint'
+            ? 'checkpoint'
+            : 'place',
       polygon,
     })
   }

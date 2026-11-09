@@ -123,6 +123,29 @@
   pointer-events: none;
 }
 
+/* Checkpoint: a small dark pill with a flag, so it reads apart from places. */
+.checkpoint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 4px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--card);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.checkpoint::before {
+  content: '';
+  width: 7px;
+  height: 9px;
+  background: var(--orange-light);
+  clip-path: polygon(0 0, 100% 25%, 0 55%, 0 100%, 15% 100%, 15% 0);
+}
+
 .zone {
   color: var(--orange);
   font-size: 13px;

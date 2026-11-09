@@ -127,7 +127,12 @@ export async function createFakeBackend(source: DataSource, opts: FakeBackendOpt
 
   return {
     devices: () => devices,
-    geofences: () => geofences.map((g, i): TraccarGeofence => ({ id: i + 1, name: g.name, area: geofenceArea(g) })),
+    geofences: () => geofences.map((g, i): TraccarGeofence => ({
+      id: i + 1,
+      name: g.name,
+      area: geofenceArea(g),
+      ...(g.kind === 'checkpoint' ? { attributes: { type: 'checkpoint' } } : {}),
+    })),
     latestPositions: async () => convert(await source.getLatestPositions()),
     route: async (deviceIds, from, to) => {
       const lists = await Promise.all(carIds(deviceIds).map((id) => source.getRoute(id, from, to + 1)))

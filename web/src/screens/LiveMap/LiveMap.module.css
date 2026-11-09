@@ -72,3 +72,17 @@
   gap: 8px;
   color: var(--muted);
 }
+
+.checkpoint {
+  font-size: 13px;
+}
+
+/* Same flag as the checkpoint labels on the map. */
+.flag {
+  flex: none;
+  width: 8px;
+  height: 11px;
+  margin: 0 3px;
+  background: var(--orange);
+  clip-path: polygon(0 0, 100% 25%, 0 55%, 0 100%, 15% 100%, 15% 0);
+}

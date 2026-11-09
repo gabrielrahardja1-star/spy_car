@@ -6,6 +6,7 @@ import { addDays } from '../format'
 import { createMockDataSource } from './index'
 import { PITS, SITE, placeAt } from './places'
 import { roadPath } from './route'
+import { zoneEvents } from '../zones'
 import { startFeed, BUFFER_RELEASE_MS } from './live'
 import { haversineM, localDayStart, localWeekday, MINUTE, HOUR } from './util'
 
@@ -25,7 +26,7 @@ describe('mock data source', () => {
     vi.useRealTimers()
   })
 
-  it('lists two trucks, the Area 2 site zone and three pits, with closed rings', async () => {
+  it('lists two trucks, the Area 2 site zone, three pits and four checkpoints, with closed rings', async () => {
     const ds = createMockDataSource({ now: () => NOW })
     expect((await ds.getCars()).map((c) => [c.id, c.name, c.driver])).toEqual([
       ['c1', 'DT-01', '[Driver name]'],
@@ -37,6 +38,10 @@ describe('mock data source', () => {
       ['Pit W', 'place'],
       ['Pit N', 'place'],
       ['Pit S', 'place'],
+      ['CP1 West gate', 'checkpoint'],
+      ['CP2 South gate', 'checkpoint'],
+      ['CP3 Pit W ramp', 'checkpoint'],
+      ['CP4 South haul road', 'checkpoint'],
     ])
     for (const g of fences) expect(g.polygon[0]).toEqual(g.polygon[g.polygon.length - 1])
   })
@@ -376,6 +381,17 @@ describe('mock history realism', () => {
         expect(Math.abs(t.distanceM - len)).toBeLessThanOrEqual(len * 0.02 + 1)
       }
     }
+  })
+
+  it('logs checkpoint passes on every haul cycle today', async () => {
+    const fences = await ds.getGeofences()
+    const route = await ds.getRoute('c1', TODAY, NOW + 1)
+    const passes = zoneEvents(route, fences).filter((e) => e.kind === 'pass')
+    const names = new Set(passes.map((e) => e.name))
+    expect(names).toEqual(new Set(['CP1 West gate', 'CP3 Pit W ramp']))
+    // Each cycle passes the ramp and the gate twice (loaded out, empty back).
+    const trips = (await ds.getTrips('c1', TODAY, NOW + 1)).filter((t) => t.endTime !== null)
+    expect(passes.filter((e) => e.name === 'CP1 West gate').length).toBeGreaterThanOrEqual(trips.length)
   })
 
   it('drives real haul roads that start in their pit and end in Area 2', () => {

@@ -65,6 +65,20 @@ describe('toGeofences', () => {
     expect(out[1].polygon).toHaveLength(33)
   })
 
+  it('marks geofences with the attribute type = checkpoint (any case) as checkpoints', () => {
+    const out = toGeofences(
+      [
+        { id: 5, name: 'CP1 Gate', area: 'CIRCLE (5 5, 30)', attributes: { type: ' Checkpoint ' } },
+        { id: 6, name: 'Pit W', area: 'CIRCLE (6 6, 300)', attributes: { type: 'pit' } },
+      ],
+      cfg,
+    )
+    expect(out.map((g) => [g.name, g.kind])).toEqual([
+      ['CP1 Gate', 'checkpoint'],
+      ['Pit W', 'place'],
+    ])
+  })
+
   it('follows a different configured site name, and no geofence is the site when none matches', () => {
     expect(toGeofences(list, { ...cfg, siteGeofenceName: 'depot' }).map((g) => g.kind)).toEqual(['place', 'site'])
     expect(toGeofences(list, { ...cfg, siteGeofenceName: 'Elsewhere' }).every((g) => g.kind === 'place')).toBe(true)

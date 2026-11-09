@@ -9,9 +9,10 @@ import { Legend, ModeToggle, ViewControls, type MapMode } from '../../components
 import { StatTile } from '../../components/ui/StatTile'
 import { StatusPill } from '../../components/ui/StatusPill'
 import { dayBounds, formatClock, formatDistance } from '../../data/format'
-import { useGeofences, useLiveCars, useNow, useTrips } from '../../data/hooks'
+import { useGeofences, useLiveCars, useNow, useRoute, useTrips } from '../../data/hooks'
 import { summarizeTrips } from '../../data/derive'
-import type { Geofence, LiveCar } from '../../data/types'
+import type { Geofence, LiveCar, ZoneEvent } from '../../data/types'
+import { zoneEvents } from '../../data/zones'
 import split from '../split.module.css'
 import styles from './LiveMap.module.css'
 import { NO_VALUE, contextOf, lastSeenText, parkedForText, pinDetail, speedText, type ContextIcon } from './liveText'
@@ -69,8 +70,21 @@ interface CarCardProps {
   onSelect: () => void
 }
 
+/** The car's last checkpoint pass today, from today's stored route plus its newest live fix. */
+function useLastCheckpoint(live: LiveCar, geofences: Geofence[], today: { start: number; end: number }): ZoneEvent | null {
+  const route = useRoute(live.car.id, today.start, today.end)
+  const fixes = route.status === 'ready' ? route.data : null
+  const latest = live.position
+  return useMemo(() => {
+    if (!fixes || !geofences.some((g) => g.kind === 'checkpoint')) return null
+    const all = latest && (fixes.length === 0 || latest.fixTime > fixes[fixes.length - 1].fixTime) ? [...fixes, latest] : fixes
+    return zoneEvents(all, geofences).filter((e) => e.kind === 'pass').at(-1) ?? null
+  }, [fixes, latest, geofences])
+}
+
 function CarCard({ live, index, geofences, now, today, selected, onSelect }: CarCardProps) {
   const trips = useTrips(live.car.id, today.start, today.end)
+  const checkpoint = useLastCheckpoint(live, geofences, today)
   const todayKm = trips.status === 'ready' ? formatDistance(summarizeTrips(live.car.id, trips.data).distanceM) : NO_VALUE
   const context =
     trips.status === 'ready' ? contextOf({ live, trips: trips.data, geofences, now, todayStart: today.start }) : null
@@ -99,6 +113,14 @@ function CarCard({ live, index, geofences, now, today, selected, onSelect }: Car
           <div className={styles.context}>
             <ContextGlyph kind={context.icon} />
             <span>{context.text}</span>
+          </div>
+        )}
+        {checkpoint && (
+          <div className={`${styles.context} ${styles.checkpoint}`}>
+            <span className={styles.flag} aria-hidden="true" />
+            <span>
+              Passed {checkpoint.name} · {formatClock(checkpoint.time)}
+            </span>
           </div>
         )}
       </Card>

@@ -28,8 +28,11 @@ export interface Position {
 export interface Geofence {
   id: string
   name: string
-  /** "site" is the work-site zone drawn on the map; "place" is any other named place. */
-  kind: 'site' | 'place'
+  /**
+   * "site" is the work-site zone drawn on the map; "checkpoint" is a small zone whose passes are logged (Traccar geofence
+   * attribute type=checkpoint); "place" is any other named place (a pit, a yard).
+   */
+  kind: 'site' | 'place' | 'checkpoint'
   /** Closed ring of [lon, lat] points. */
   polygon: [number, number][]
 }
@@ -103,4 +106,14 @@ export interface StripSegment {
   widthPct: number
   /** Tooltip, e.g. "Moving 07:42 to 07:58" or "Parked 3 min". */
   title: string
+}
+
+/** A truck passing a checkpoint, or entering or leaving another zone, worked out from its fixes. */
+export interface ZoneEvent {
+  carId: string
+  time: number
+  kind: 'pass' | 'enter' | 'exit'
+  geofenceId: string
+  name: string
+  zoneKind: Geofence['kind']
 }

@@ -29,6 +29,7 @@ const eventColor: Record<TimelineEvent['kind'], { color: string; shape: string }
   move: { color: 'var(--blue)', shape: styles.markerRound },
   stop: { color: 'var(--orange)', shape: styles.markerSquare },
   end: { color: 'var(--ink)', shape: styles.markerRound },
+  checkpoint: { color: 'var(--slate)', shape: styles.markerDiamond },
 }
 
 function Chevron({ dir }: { dir: 'left' | 'right' }) {
@@ -42,6 +43,8 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
 interface TripCardProps {
   trip: Trip
   geofences: Geofence[]
+  /** The trip's fixes in time order, for checkpoint passes in the timeline. Empty until loaded. */
+  route: Position[]
   selected: boolean
   /** Timeline rows jump the replay to their time; off while there is no route to replay. */
   canSeek: boolean
@@ -49,7 +52,7 @@ interface TripCardProps {
   onSeek: (time: number) => void
 }
 
-function TripCard({ trip, geofences, selected, canSeek, onSelect, onSeek }: TripCardProps) {
+function TripCard({ trip, geofences, route, selected, canSeek, onSelect, onSeek }: TripCardProps) {
   const inProgress = trip.endTime === null
   const showDetail = selected && !inProgress
   return (
@@ -82,7 +85,7 @@ function TripCard({ trip, geofences, selected, canSeek, onSelect, onSeek }: Trip
               <StatTile label="Stops" value={stopsSummary(trip)} />
             </div>
             <ul className={styles.events}>
-              {eventsOf(trip, geofences).map((e, i) => (
+              {eventsOf(trip, geofences, route).map((e, i) => (
                 <li key={i}>
                   <button
                     type="button"
@@ -193,6 +196,7 @@ function HistoryBody({ cars }: { cars: Car[] }) {
             key={trip.id}
             trip={trip}
             geofences={fences}
+            route={selectedTrip?.id === trip.id ? fixes : NO_FIXES}
             selected={selectedTrip?.id === trip.id}
             canSeek={playback.enabled}
             onSelect={() => setPickedTrip(trip.id)}

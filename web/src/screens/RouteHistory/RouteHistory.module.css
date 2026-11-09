@@ -136,6 +136,12 @@
   border-radius: 2px;
 }
 
+/* Checkpoint pass: a small diamond. */
+.markerDiamond {
+  border-radius: 1px;
+  transform: rotate(45deg) scale(0.85);
+}
+
 .progress {
   display: flex;
   align-items: center;

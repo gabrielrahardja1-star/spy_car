@@ -17,6 +17,13 @@ describe('LiveMap', () => {
     expect(screen.getAllByText('[Driver name]').length).toBeGreaterThan(0)
   })
 
+  it("shows each truck's last checkpoint pass today", async () => {
+    renderApp('/')
+    await screen.findByText('DT-01')
+    expect(await within(carButton('DT-01')).findByText(/^Passed CP\d .* · \d\d:\d\d$/)).toBeInTheDocument()
+    expect(await within(carButton('DT-02')).findByText(/^Passed CP2 South gate · /)).toBeInTheDocument()
+  })
+
   it('shows no driver line when the car has no driver label (real tracker data)', async () => {
     const source = createFakeSource({ cars: [{ ...CAR_1, driver: '' }, CAR_2], positions: [position(CAR_1.id, FIXED_NOW - 1000), position(CAR_2.id, FIXED_NOW - 1000)] })
     renderApp('/', source)

@@ -38,6 +38,8 @@ export interface TraccarGeofence {
   name: string
   /** WKT with latitude first: "POLYGON ((lat lon, ...))" or "CIRCLE (lat lon, radiusMetres)". */
   area: string
+  /** Free-form attributes set in Traccar's geofence screen. `type: "checkpoint"` marks a checkpoint. */
+  attributes?: Record<string, unknown>
 }
 
 export interface TraccarTrip {
