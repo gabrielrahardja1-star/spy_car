@@ -146,7 +146,39 @@ services:
       start_period: 15s
     logging: *default-logging
 
+  # ---------------------------------------------------------------- test truck (optional)
+  # A simulated dump truck: hauls CWP -> Area 2 on a shift schedule (06:00-18:00, break 12:00-13:00, site time), with
+  # random cycle times and the odd breakdown, forever. Sends to Traccar inside Docker, so port 5055 can stay closed.
+  # It only runs when asked:   docker compose --profile sim up -d sim-dt01
+  # Stop it:                   docker compose --profile sim stop sim-dt01
+  # First add the truck in the app (Manage > Trucks > Add truck, Test truck, Simulator); its tracker ID must match
+  # SIM_DT01_ID (default sim-dt-01, what the app makes for a truck named DT-01).
+  sim-dt01:
+    image: node:22-alpine
+    profiles: ["sim"]
+    restart: unless-stopped
+    depends_on:
+      - traccar
+    volumes:
+      - ../web/dev/simulate-car.mjs:/sim/simulate-car.mjs:ro
+      - sim_state:/state
+    command:
+      - node
+      - /sim/simulate-car.mjs
+      - --host=traccar
+      - --id=${SIM_DT01_ID:-sim-dt-01}
+      - --profile=dump-truck
+      - --schedule
+      - --state=/state/sim-dt01.json
+      - --every=10
+      - --lat=-3.176917
+      - --lon=115.273364
+      - --to-lat=-3.172511
+      - --to-lon=115.281808
+    logging: *default-logging
+
 volumes:
+  sim_state:
   db_data:
   caddy_data:
   caddy_config:

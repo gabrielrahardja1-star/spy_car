@@ -373,6 +373,30 @@ Notes:
 
 ---
 
+## A test truck that runs all day on the server
+
+The server can run a simulated dump truck that hauls **CWP → Area 2** on a shift schedule, forever: 06:00-18:00 with a
+12:00-13:00 break (site time), parked at CWP outside working hours, with random loading, tipping and driving times and
+an occasional 20-45 minute breakdown on the road. It sends straight to Traccar inside Docker (port 5055 can stay closed)
+and remembers where it got to, so after a restart it fills in the gap and carries on.
+
+1. In the app: **Manage > Trucks > Add truck**, name `DT-01`, **Test truck**, driven by **Simulator**. Its tracker ID
+   is `sim-dt-01` (set `SIM_DT01_ID` in `deploy/.env` if you used another).
+2. On the server, in `deploy/`:
+
+   ```sh
+   docker compose --profile sim up -d sim-dt01
+   docker compose logs -f sim-dt01      # Ctrl+C to leave; shows "hauling", "break", "breakdown", ...
+   ```
+
+   The first start fills in the last 12 hours, so Route history and the Dashboard have data straight away.
+3. To stop it: `docker compose --profile sim stop sim-dt01`. To remove its data too, delete the truck in the app.
+
+The same mode runs on any computer: add `--schedule` to the simulator command (options at the top of
+`web/dev/simulate-car.mjs`).
+
+---
+
 ## Test with the Traccar Client phone app
 
 This proves the whole chain before any tracker is bought.
