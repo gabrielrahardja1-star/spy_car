@@ -392,8 +392,14 @@ and remembers where it got to, so after a restart it fills in the gap and carrie
    The first start fills in the last 12 hours, so Route history and the Dashboard have data straight away.
 3. To stop it: `docker compose --profile sim stop sim-dt01`. To remove its data too, delete the truck in the app.
 
-The same mode runs on any computer: add `--schedule` to the simulator command (options at the top of
-`web/dev/simulate-car.mjs`).
+A second test truck, **DT-02**, works like a truck that is sent to different loading points during the day: blocks of
+2-6 loads from Klinik, Ventilasi, CWP or Belakang Conveyor, always tipping at Area 2, driving empty on the real road to
+its next start point. It works 07:00-19:00 with a 12:30-13:30 break. Add it in the app (`DT-02`, Test truck, Simulator,
+tracker ID `sim-dt-02`), then `docker compose --profile sim up -d sim-dt02`. Both test trucks add a couple of metres of
+GPS wander, like a real receiver.
+
+The same mode runs on any computer: add `--schedule` (and `--start NAME:LAT,LON` for each loading point) to the
+simulator command (options at the top of `web/dev/simulate-car.mjs`).
 
 ---
 

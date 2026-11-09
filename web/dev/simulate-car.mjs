@@ -37,12 +37,16 @@
 //
 // A test truck that works shifts, forever (--schedule, dump truck only): it hauls during the shift, parks at the start
 // point for breaks and overnight, and varies from cycle to cycle (loading 85-150%, tipping 100-140%, speeds 85-110%).
-// Now and then it breaks down on the road for 20-45 minutes. Times are the site's local time.
+// Every few days it breaks down on the road for 20-45 minutes. Times are the site's local time.
 //   --shift       working hours (default 06:00-18:00)        --break  a break, repeatable (default 12:00-13:00)
 //   --tz-offset   site time zone in hours from UTC (default 8, WITA)
-//   --breakdown-chance  chance per cycle (default 0.03)
+//   --breakdown-chance  chance per cycle (default 0.01, about one every few days)
 //   --state FILE  remembers the route and the last position sent. On start it fills in everything since then (at most
 //                 --backfill-hours, default 12) before going live, so a restart leaves no gap and sends nothing twice.
+//   --start NAME:LAT,LON  several loading points instead of --lat/--lon (repeat it). The truck is dispatched like a
+//                 real one: a block of 2-6 loads from one start point, then sent to another; after tipping it drives
+//                 empty from the dump to its next start point on the real road. All of them haul to --to-lat/--to-lon.
+//   --gps-noise   metres of GPS wander added to every position (default 2 in schedule mode, 0 otherwise)
 // Example (the server runs this as the sim-dt01 service, see deploy/docker-compose.yml):
 //   node dev/simulate-car.mjs --host 203.0.113.10 --id sim-dt-01 --profile dump-truck --schedule --state sim-dt-01.json \
 //     --lat -3.176917 --lon 115.273364 --to-lat -3.172511 --to-lon 115.281808
@@ -64,8 +68,16 @@ const flag = (name) => args.includes(`--${name}`)
 const host = opt('host', '127.0.0.1')
 const port = Number(opt('port', 5055))
 const id = opt('id', '')
-const lat0 = Number(opt('lat', -6.2022))
-const lon0 = Number(opt('lon', 106.8237))
+/** --start NAME:LAT,LON, repeatable: the loading points of a truck that is sent to different ones. */
+const starts = args
+  .flatMap((a, i) => (a.startsWith('--start=') ? [a.slice(8)] : a === '--start' && args[i + 1] ? [args[i + 1]] : []))
+  .map((text) => {
+    const m = /^(.+):\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)$/.exec(text.trim())
+    if (!m) throw new Error(`Not a start point: ${text} (use NAME:LAT,LON, e.g. CWP:-3.176917,115.273364)`)
+    return { name: m[1].trim(), lat: Number(m[2]), lon: Number(m[3]) }
+  })
+const lat0 = starts.length > 0 ? starts[0].lat : Number(opt('lat', -6.2022))
+const lon0 = starts.length > 0 ? starts[0].lon : Number(opt('lon', 106.8237))
 const lat1 = Number(opt('to-lat', lat0 + 0.018))
 const lon1 = Number(opt('to-lon', lon0 + 0.015))
 const truck = opt('profile', 'car') === 'dump-truck'
@@ -80,9 +92,10 @@ const everyS = Number(opt('every', 5))
 const dryRun = flag('dry-run')
 const scheduled = truck && flag('schedule')
 const tzOffsetH = Number(opt('tz-offset', 8))
-const breakdownChance = Number(opt('breakdown-chance', 0.03))
+const breakdownChance = Number(opt('breakdown-chance', 0.01))
 const backfillHours = Number(opt('backfill-hours', 12))
 const statePath = opt('state', null)
+const gpsNoiseM = Number(opt('gps-noise', scheduled ? 2 : 0))
 
 /** "06:00-18:00" -> [360, 1080] minutes of the day. */
 function minutesRange(text) {
@@ -171,7 +184,18 @@ function saveState() {
 
 // ------------------------------------------------------------------ sending
 
-async function post(tSec, p, speedKmh) {
+/** GPS wander: a slowly drifting offset of about --gps-noise metres, the way a real receiver's error drifts. */
+const drift = { east: 0, north: 0 }
+const gauss = () => Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random())
+function withNoise(p) {
+  if (gpsNoiseM <= 0) return p
+  drift.east = 0.8 * drift.east + 0.6 * gpsNoiseM * gauss()
+  drift.north = 0.8 * drift.north + 0.6 * gpsNoiseM * gauss()
+  return { ...p, lat: p.lat + drift.north / 110574, lon: p.lon + drift.east / (111320 * Math.cos(toRad(p.lat))) }
+}
+
+async function post(tSec, exact, speedKmh) {
+  const p = withNoise(exact)
   const q = new URLSearchParams({
     id,
     timestamp: String(Math.round(tSec)),
@@ -320,8 +344,37 @@ function nextChange(t, working) {
   return u
 }
 /** Worst-case length of one cycle in seconds, to avoid starting a load that would run into a break. */
-const longestCycleS = () =>
-  loadMin * 60 * 1.5 + (outLen / (loadedKmh * 0.85)) * 3.6 + dumpMin * 60 * 1.4 + 240 + ((route.length - outLen) / (kmh * 0.85)) * 3.6
+const longestCycleS = () => {
+  const out = legs ? Math.max(...legs.map((l) => l.outLen)) : outLen
+  const back = legs ? Math.max(...legs.map((l) => l.backLen)) : route.length - outLen
+  return loadMin * 60 * 1.5 + (out / (loadedKmh * 0.85)) * 3.6 + dumpMin * 60 * 1.4 + 240 + (back / (kmh * 0.85)) * 3.6
+}
+
+// ------------------------------------------------------------------ dispatch between start points (--start)
+
+/** Per start point: the road to the dump and back, as [lat, lon] points. Null with a single start. */
+let legs = null
+let current = 0 // index of the start point the truck is at
+let loadsLeft = 0 // loads still to take from the current start point before being sent elsewhere
+
+/** Sets `route` for the next cycle: load at the current start point, tip, return empty to the next one. */
+function planCycle() {
+  if (!legs) return
+  if (loadsLeft <= 0) {
+    loadsLeft = 2 + Math.floor(Math.random() * 5)
+    note(`loading at ${legs[current].name} (${loadsLeft} loads)`)
+  }
+  loadsLeft--
+  let next = current
+  if (loadsLeft === 0 && legs.length > 1) {
+    next = Math.floor(Math.random() * (legs.length - 1))
+    if (next >= current) next++
+  }
+  route = toPath([...legs[current].out, ...legs[next].back.slice(1)])
+  outLen = legs[current].outLen
+  current = next
+  state.at = legs[current].name
+}
 
 let lastNote = ''
 function note(text) {
@@ -351,7 +404,8 @@ async function workSchedule(until, stepS) {
       await parkUntil(stopAt)
       continue
     }
-    note('hauling')
+    if (!legs) note('hauling')
+    planCycle()
     s = 0
     await haulCycle(stepS)
   }
@@ -386,21 +440,38 @@ async function runSchedule() {
 }
 
 try {
-  const key = `${lat0},${lon0},${lat1},${lon1}`
-  let out
-  let back
-  if (state.route?.key === key) {
-    ;({ out, back } = state.route) // remembered, so a restart does not depend on the routing service
-  } else {
-    console.log('Asking the routing service for a road route...')
-    out = await fetchRoute([lat0, lon0], [lat1, lon1])
-    back = await fetchRoute(out[out.length - 1], out[0]) // can differ from the way out (one-way streets)
-    state.route = { key, out, back }
-    saveState()
+  /** The road from a start point to the dump and back, remembered so a restart does not need the routing service. */
+  async function roadsFrom(lat, lon) {
+    const key = `${lat},${lon},${lat1},${lon1}`
+    state.routes ??= {}
+    if (state.route?.key === key) state.routes[key] = state.route // from before several start points were possible
+    if (!state.routes[key]) {
+      console.log('Asking the routing service for a road route...')
+      const out = await fetchRoute([lat, lon], [lat1, lon1])
+      const back = await fetchRoute(out[out.length - 1], out[0]) // can differ from the way out (one-way streets)
+      state.routes[key] = { key, out, back }
+      saveState()
+    }
+    return state.routes[key]
   }
-  route = toPath([...out, ...back.slice(1)])
-  outLen = toPath(out).length
-  console.log(`Route: ${(outLen / 1000).toFixed(1)} km out, ${((route.length - outLen) / 1000).toFixed(1)} km back, on real roads.`)
+
+  if (starts.length > 1) {
+    legs = []
+    for (const st of starts) {
+      const { out, back } = await roadsFrom(st.lat, st.lon)
+      legs.push({ name: st.name, out, back, outLen: toPath(out).length, backLen: toPath(back).length })
+      console.log(`Route from ${st.name}: ${(legs.at(-1).outLen / 1000).toFixed(1)} km to the dump, ${(legs.at(-1).backLen / 1000).toFixed(1)} km back.`)
+    }
+    current = Math.max(0, legs.findIndex((l) => l.name === state.at))
+    if (state.at === undefined) current = Math.floor(Math.random() * legs.length)
+    route = toPath([...legs[current].out, ...legs[current].back.slice(1)])
+    outLen = legs[current].outLen
+  } else {
+    const { out, back } = await roadsFrom(lat0, lon0)
+    route = toPath([...out, ...back.slice(1)])
+    outLen = toPath(out).length
+    console.log(`Route: ${(outLen / 1000).toFixed(1)} km out, ${((route.length - outLen) / 1000).toFixed(1)} km back, on real roads.`)
+  }
 
   if (scheduled) {
     await runSchedule()

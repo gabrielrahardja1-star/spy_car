@@ -177,6 +177,39 @@ services:
       - --to-lon=115.281808
     logging: *default-logging
 
+  # A second test truck, dispatched like a real one: blocks of 2-6 loads from one of the four start points (Klinik,
+  # Ventilasi, CWP, Belakang Conveyor), then sent to another, always tipping at Area 2. Works 07:00-19:00 with a
+  # 12:30-13:30 break, so it is not in step with DT-01. Positions carry a couple of metres of GPS wander.
+  #   docker compose --profile sim up -d sim-dt02
+  # Add the truck in the app first: DT-02, Test truck, Simulator (tracker ID sim-dt-02, or set SIM_DT02_ID).
+  sim-dt02:
+    image: node:22-alpine
+    profiles: ["sim"]
+    restart: unless-stopped
+    depends_on:
+      - traccar
+    volumes:
+      - ../web/dev/simulate-car.mjs:/sim/simulate-car.mjs:ro
+      - sim_state:/state
+    command:
+      - node
+      - /sim/simulate-car.mjs
+      - --host=traccar
+      - --id=${SIM_DT02_ID:-sim-dt-02}
+      - --profile=dump-truck
+      - --schedule
+      - --shift=07:00-19:00
+      - --break=12:30-13:30
+      - --state=/state/sim-dt02.json
+      - --every=10
+      - --start=Klinik:-3.178875,115.272158
+      - --start=Ventilasi:-3.177925,115.273756
+      - --start=CWP:-3.176917,115.273364
+      - --start=Belakang Conveyor:-3.176414,115.275161
+      - --to-lat=-3.172511
+      - --to-lon=115.281808
+    logging: *default-logging
+
 volumes:
   sim_state:
   db_data:
