@@ -24,13 +24,19 @@ export function createMockDataSource(opts: MockOptions = {}): DataSource {
   const world = createWorld(now, config.timezone)
 
   // Truck edits live in memory until the page reloads. A new truck has no data; a disabled one is hidden everywhere.
-  let fleet: TruckRecord[] = world.cars.map((c, i) => ({ ...c, trackerId: `dt-0${i + 1}`, enabled: true }))
+  // DT-01 plays a real truck with a GPS tracker, DT-02 a test truck driven by the simulator.
+  let fleet: TruckRecord[] = world.cars.map((c, i) =>
+    i === 0
+      ? { ...c, source: 'tracker', trackerId: '490154203237518', model: 'teltonika', phone: '+62 812 0000 0001', enabled: true }
+      : { ...c, source: 'simulator', trackerId: `sim-dt-0${i + 1}`, model: '', phone: '', enabled: true },
+  )
   let nextTruck = 1
   const carListeners = new Set<() => void>()
   const carsChanged = () => {
     for (const l of carListeners) l()
   }
-  const activeCars = (): Car[] => fleet.filter((t) => t.enabled).map(({ id, name, driver }) => ({ id, name, driver }))
+  const activeCars = (): Car[] =>
+    fleet.filter((t) => t.enabled).map(({ id, name, driver, source }) => ({ id, name, driver, ...(source === 'tracker' ? {} : { test: true }) }))
   const isActive = (carId: string) => fleet.some((t) => t.id === carId && t.enabled)
   const truckAt = (id: string) => {
     const truck = fleet.find((t) => t.id === id)
@@ -56,7 +62,15 @@ export function createMockDataSource(opts: MockOptions = {}): DataSource {
       async save(input, id) {
         const problem = truckInputProblem(input, fleet.filter((t) => t.id !== id))
         if (problem) throw new EditRefused(problem)
-        const fields = { name: input.name.trim(), trackerId: input.trackerId.trim(), driver: input.driver.trim() }
+        const real = input.source === 'tracker'
+        const fields = {
+          name: input.name.trim(),
+          source: input.source,
+          trackerId: input.trackerId.trim(),
+          model: real ? input.model : '',
+          phone: real ? input.phone.trim() : '',
+          driver: input.driver.trim(),
+        }
         if (id === undefined) fleet = [...fleet, { id: `new-${nextTruck++}`, ...fields, enabled: true }]
         else fleet = fleet.map((t) => (t.id === truckAt(id).id ? { ...t, ...fields } : t))
         carsChanged()

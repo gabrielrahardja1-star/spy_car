@@ -1,6 +1,7 @@
 // Traccar JSON -> domain types. Pure. All unit conversion happens here (knots -> km/h, ISO -> ms; metres stay metres).
 import { config, type Config } from '../../config'
 import { knotsToKmh } from '../derive'
+import type { TruckSource } from '../trackers'
 import type { Car, Geofence, Position, Trip } from '../types'
 import type { TraccarDevice, TraccarGeofence, TraccarPosition, TraccarTrip } from './api'
 import { geofenceNameAt } from './geo'
@@ -15,7 +16,14 @@ function nonEmpty(v: unknown): string | undefined {
 /** Devices the owner switched off are not cars. The on-screen name is the device name; the driver label is optional. */
 export function toCar(d: TraccarDevice): Car {
   const attrs = d.attributes ?? {}
-  return { id: carIdOf(d.id), name: d.name, driver: nonEmpty(attrs.driver) ?? nonEmpty(attrs.driverName) ?? '' }
+  const car: Car = { id: carIdOf(d.id), name: d.name, driver: nonEmpty(attrs.driver) ?? nonEmpty(attrs.driverName) ?? '' }
+  return truckSourceOf(d) === 'tracker' ? car : { ...car, test: true }
+}
+
+/** The app keeps the truck type in the attribute `source`. A device made elsewhere (Traccar's own screen) counts as real. */
+export function truckSourceOf(d: TraccarDevice): TruckSource {
+  const s = d.attributes?.source
+  return s === 'simulator' || s === 'phone' ? s : 'tracker'
 }
 
 /**

@@ -199,13 +199,18 @@ The admin screen of Traccar is deliberately **not** on the internet. You reach i
    *Why:* once the admin exists, anyone who could open the register page could otherwise create an account.
    (Extra protection already in place: the public domain refuses every change except login and logout, and the admin screen is not public.)
 
-5. **Add the trucks** — in the app, not here: sign in to the app as admin, open the Live map and press **Manage trucks**,
-   then **Add truck**. Give it a name (`DT-01`) and its **Tracker ID**: the IMEI printed on the tracker (15 digits), the
-   ID shown in the Traccar Client phone app, or the simulator's `--id`. It must match exactly, or Traccar ignores the
-   truck's positions. The app shares each new truck with every user.
-   - **Disable** hides a truck from every screen but keeps its history (Enable brings it back).
-     **Delete** also deletes every position it ever sent, and cannot be undone.
-   - Only an administrator who is not read-only sees *Manage trucks* (see step 7 for marking users read-only).
+5. **Add the trucks** in the app, not here: sign in to the app as admin and open the **Manage** tab (only admins who
+   are not read-only see it). Press **Add truck**, give it a name (`DT-01`) and choose:
+   - **Test truck**, driven by the **simulator** (the tracker ID is made from the name) or the **Traccar Client phone
+     app** (type the identifier the app shows).
+   - **Real truck** with a GPS tracker: the tracker model, its **IMEI** (15 digits on the label; the app checks it) and,
+     optionally, the tracker's SIM number.
+
+   After saving, the truck's **Setup** steps open: the simulator command, the phone app's settings, or the server and
+   port to set on the tracker. They show this server's IP when `VITE_TRACKER_SERVER` is set in `deploy/.env`.
+   A real tracker family's port must also be opened once: set its `..._BIND=0.0.0.0` in `deploy/.env` (the Setup steps
+   name the variable) and run `docker compose up -d`. **Disable** hides a truck but keeps its history; **Delete** also
+   deletes every position it ever sent.
 
 6. **Draw ONE geofence named exactly `Site`.** Open *Geofences* (map menu or *Settings > Geofences*), add an area
    (polygon or circle) around the work site, and name it **`Site`** (capital S, nothing else).
@@ -214,11 +219,11 @@ The admin screen of Traccar is deliberately **not** on the internet. You reach i
    (The name is a setting: `VITE_SITE_GEOFENCE_NAME`. A rebuild is needed to change it.)
 
 7. **Checkpoints** (gates, ramps, the dump entrance) are added **in the app**: sign in with an admin account, open the
-   Live map, switch the side panel to **Checkpoints** and press **Add checkpoint**. Tap the map where it is, or paste the
+   **Manage** tab, switch to **Checkpoints** and press **Add checkpoint**. Tap the map where it is, or paste the
    coordinates (`3°10'21.04"S 115°16'54.51"E` or `-3.172511, 115.281808`), give it a name such as `CP1 West gate` and a
    size (about 30 m covers a haul road), and save. Edit and Delete are on each row. Everyone sees the change at once.
    - Only an **administrator who is not read-only** can change checkpoints. In Traccar (SSH tunnel), tick **Readonly** on
-     every user who should only look; then the app shows them the list without the buttons.
+     every user who should only look; they do not see the Manage tab.
    - The app logs every pass in Route history ("Passed CP1 West gate") and shows each truck's last pass on the Live map.
      Passes are worked out from the trucks' positions, so no Traccar notification setup is needed, and a checkpoint added
      later also shows passes in older history.

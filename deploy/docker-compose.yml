@@ -122,6 +122,7 @@ services:
         VITE_DATA_SOURCE: ${VITE_DATA_SOURCE:-traccar}
         VITE_TIMEZONE: ${VITE_TIMEZONE:-Asia/Makassar}
         VITE_SITE_GEOFENCE_NAME: ${VITE_SITE_GEOFENCE_NAME:-Site}
+        VITE_TRACKER_SERVER: ${VITE_TRACKER_SERVER:-}
     restart: unless-stopped
     environment:
       # Read by deploy/caddy/Caddyfile. A domain name = automatic HTTPS. ":80" = plain HTTP.

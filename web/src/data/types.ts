@@ -5,6 +5,8 @@
 export type CarStatus = 'moving' | 'parked' | 'nosignal'
 
 export interface Car {
+  /** A test truck (simulator or phone app), shown with a Test badge. */
+  test?: boolean
   id: string
   /** On-screen name, e.g. "Car 01". */
   name: string

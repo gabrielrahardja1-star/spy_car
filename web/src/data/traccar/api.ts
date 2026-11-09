@@ -11,6 +11,11 @@ export interface TraccarDevice {
   id: number
   name: string
   uniqueId?: string
+  /** Free text in Traccar; the app stores the tracker model key here. */
+  model?: string | null
+  /** The tracker's SIM phone number. */
+  phone?: string | null
+  category?: string | null
   status?: string
   disabled?: boolean
   lastUpdate?: string | null

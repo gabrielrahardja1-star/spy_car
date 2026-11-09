@@ -18,6 +18,8 @@ export interface Config {
   minPauseMs: number
   /** Pauses are derived from per-trip routes only for ranges up to this long; longer ranges show "—" for stops. */
   pauseDeriveMaxRangeMs: number
+  /** The server's public IP that trackers send to, for the setup steps in the Manage tab. Empty = not configured. */
+  trackerServer: string
 }
 
 export const config: Config = {
@@ -31,4 +33,5 @@ export const config: Config = {
   siteGeofenceName: import.meta.env.VITE_SITE_GEOFENCE_NAME || 'Area 2',
   minPauseMs: 2 * 60 * 1000,
   pauseDeriveMaxRangeMs: 2 * 24 * 60 * 60 * 1000,
+  trackerServer: (import.meta.env.VITE_TRACKER_SERVER ?? '').trim(),
 }

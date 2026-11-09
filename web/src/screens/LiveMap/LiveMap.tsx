@@ -9,13 +9,7 @@ import { Legend, ModeToggle, ViewControls, type MapMode } from '../../components
 import { StatTile } from '../../components/ui/StatTile'
 import { StatusPill } from '../../components/ui/StatusPill'
 import { dayBounds, formatClock, formatDistance } from '../../data/format'
-import { useCanEditCheckpoints, useCanEditTrucks, useGeofences, useLiveCars, useNow, useRoute, useTrips } from '../../data/hooks'
-import { useDataSource } from '../../data/DataProvider'
-import { formatDms } from '../../data/coords'
-import { SegmentedControl } from '../../components/ui/SegmentedControl'
-import { CheckpointPanel } from './CheckpointPanel'
-import { TruckPanel } from './TruckPanel'
-import { formCircle, type CheckpointForm } from './checkpointForm'
+import { useGeofences, useLiveCars, useNow, useRoute, useTrips } from '../../data/hooks'
 import { summarizeTrips } from '../../data/derive'
 import type { Geofence, LiveCar, ZoneEvent } from '../../data/types'
 import { zoneEvents } from '../../data/zones'
@@ -101,7 +95,10 @@ function CarCard({ live, index, geofences, now, today, selected, onSelect }: Car
         <div className={styles.carHead}>
           <CarIcon index={index} />
           <div className={styles.carText}>
-            <div className={styles.carName}>{live.car.name}</div>
+            <div className={styles.carName}>
+              {live.car.name}
+              {live.car.test && <span className={styles.testBadge}>Test</span>}
+            </div>
             {live.car.driver !== '' && <div className={styles.driver}>{live.car.driver}</div>}
           </div>
           <StatusPill status={live.status} />
@@ -149,18 +146,6 @@ export function LiveMap() {
   const cars = live.status === 'ready' ? live.data : []
   const [selected, setSelected] = useSelectedCar(cars.map((c) => c.car.id))
   const fences = useMemo(() => (geofences.status === 'ready' ? geofences.data : []), [geofences])
-  const source = useDataSource()
-  const canEdit = useCanEditCheckpoints()
-  const [tab, setTab] = useState<'trucks' | 'checkpoints'>('trucks')
-  const [form, setForm] = useState<CheckpointForm | null>(null)
-  const canEditTrucks = useCanEditTrucks()
-  const [managing, setManaging] = useState(false)
-  const checkpoints = useMemo(() => fences.filter((g) => g.kind === 'checkpoint'), [fences])
-  const draft = useMemo(() => (form ? formCircle(form) : null), [form])
-  const onPick = useMemo(
-    () => (form ? (lat: number, lon: number) => setForm({ ...form, location: formatDms({ lat, lon }) }) : null),
-    [form],
-  )
 
   const mapRef = useRef<MapHandle>(null)
   const trail = useTrail(cars.find((c) => c.car.id === selected), today.start, today.end)
@@ -184,40 +169,13 @@ export function LiveMap() {
 
   return (
     <main className={split.main}>
-      <section aria-label={tab === 'trucks' ? 'Trucks' : 'Checkpoints'} className={split.panel}>
-        <SegmentedControl
-          label="Show"
-          fill
-          options={[
-            { value: 'trucks', label: 'Trucks' },
-            { value: 'checkpoints', label: `Checkpoints${checkpoints.length > 0 ? ` (${checkpoints.length})` : ''}` },
-          ]}
-          value={tab}
-          onChange={(v) => {
-            setTab(v)
-            if (v === 'trucks') setForm(null)
-          }}
-        />
+      <section aria-label="Trucks" className={split.panel}>
         <div className={styles.heading}>
-          <h1>{tab === 'trucks' ? 'Trucks' : 'Checkpoints'}</h1>
-          {tab === 'trucks' && !managing && live.status === 'ready' && <div className={styles.summary}>{summaryText(live.data)}</div>}
-          {tab === 'trucks' && !managing && canEditTrucks && source.trucks && (
-            <button type="button" className={styles.manage} onClick={() => setManaging(true)}>
-              Manage trucks
-            </button>
-          )}
+          <h1>Trucks</h1>
+          {live.status === 'ready' && <div className={styles.summary}>{summaryText(live.data)}</div>}
         </div>
-        {tab === 'trucks' && managing && source.trucks && <TruckPanel editor={source.trucks} onDone={() => setManaging(false)} />}
-        {tab === 'checkpoints' && (
-          <CheckpointPanel
-            checkpoints={checkpoints}
-            editor={canEdit ? (source.checkpoints ?? null) : null}
-            form={form}
-            onFormChange={setForm}
-          />
-        )}
-        {tab === 'trucks' && !managing && blocked && <AsyncNotice state={blocked} loading="Loading trucks..." />}
-        {tab === 'trucks' && !managing && cars.map((c, i) => (
+        {blocked && <AsyncNotice state={blocked} loading="Loading trucks..." />}
+        {cars.map((c, i) => (
           <CarCard
             key={c.car.id}
             live={c}
@@ -240,8 +198,6 @@ export function LiveMap() {
           trail={trail}
           mode={mode}
           onSelect={setSelected}
-          draft={draft}
-          onPick={onPick}
           siteName={fences.find((g) => g.kind === 'site')?.name}
           originName={fences.find((g) => g.kind === 'place')?.name}
         />

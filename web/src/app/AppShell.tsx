@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useDataSource } from '../data/DataProvider'
-import { useCars, useLastMessageAt, useNow } from '../data/hooks'
+import { useCanEditCheckpoints, useCanEditTrucks, useCars, useLastMessageAt, useNow } from '../data/hooks'
 import type { ConnectionState } from '../data/source'
 import { useSession } from './session'
 import styles from './AppShell.module.css'
@@ -11,6 +11,8 @@ const tabs = [
   { to: '/history', label: 'Route history', end: false },
   { to: '/dashboard', label: 'Dashboard', end: false },
 ]
+/** Only for admins who may change trucks or checkpoints. */
+const MANAGE_TAB = { to: '/manage', label: 'Manage', end: false }
 
 /** Live link state from sources that have one (Traccar). Sources without one count as connected. */
 function useConnection(): ConnectionState {
@@ -57,6 +59,9 @@ function Subtitle() {
 }
 
 export function AppShell() {
+  const canEditTrucks = useCanEditTrucks()
+  const canEditCheckpoints = useCanEditCheckpoints()
+  const canManage = canEditTrucks || canEditCheckpoints
   return (
     <div className={styles.page}>
       <header className={styles.header}>
@@ -73,7 +78,7 @@ export function AppShell() {
           </div>
         </div>
         <nav aria-label="Views" className={styles.tabs}>
-          {tabs.map((t) => (
+          {[...tabs, ...(canManage ? [MANAGE_TAB] : [])].map((t) => (
             <NavLink key={t.to} to={t.to} end={t.end} className={styles.tab}>
               {t.label}
             </NavLink>

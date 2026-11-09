@@ -18,8 +18,8 @@ function server(opts: { me?: TraccarUser | null; users?: TraccarUser[]; refuse?:
     { id: 8, name: 'CP1 Gate', area: 'CIRCLE (-3.172592 115.279189, 30)', attributes: { type: 'checkpoint', color: 'red' } },
   ]
   let devices: TraccarDevice[] = [
-    { id: 1, name: 'DT-01', uniqueId: 'dt-01', attributes: { driver: 'Budi', speedLimit: 30 } },
-    { id: 2, name: 'DT-02', uniqueId: 'dt-02', disabled: true },
+    { id: 1, name: 'DT-01', uniqueId: 'dt-01', model: 'teltonika', phone: '+62 812 1', attributes: { driver: 'Budi', speedLimit: 30 } },
+    { id: 2, name: 'DT-02', uniqueId: 'dt-02', disabled: true, attributes: { source: 'simulator' } },
   ]
   const calls: Call[] = []
   const json = (status: number, body?: unknown) =>
@@ -129,8 +129,8 @@ describe('truck management against Traccar', () => {
   it('lists every truck, disabled ones too, while the app shows only enabled ones', async () => {
     const { source } = server()
     expect(await source.trucks!.list()).toEqual([
-      { id: '1', name: 'DT-01', trackerId: 'dt-01', driver: 'Budi', enabled: true },
-      { id: '2', name: 'DT-02', trackerId: 'dt-02', driver: '', enabled: false },
+      { id: '1', name: 'DT-01', source: 'tracker', trackerId: 'dt-01', model: 'teltonika', phone: '+62 812 1', driver: 'Budi', enabled: true },
+      { id: '2', name: 'DT-02', source: 'simulator', trackerId: 'dt-02', model: '', phone: '', driver: '', enabled: false },
     ])
     expect((await source.getCars()).map((c) => c.name)).toEqual(['DT-01'])
   })
@@ -140,9 +140,13 @@ describe('truck management against Traccar', () => {
     await source.getCars()
     let told = 0
     source.onCarsChange!(() => told++)
-    await source.trucks!.save({ name: ' DT-03 ', trackerId: ' 358480081234567 ', driver: '' })
+    await source.trucks!.save({ name: ' DT-03 ', source: 'tracker', trackerId: ' 490154203237518 ', model: 'gt06', phone: ' +62 812 3 ', driver: '' })
     expect(changes()).toEqual([
-      { method: 'POST', path: '/api/devices', body: { name: 'DT-03', uniqueId: '358480081234567', attributes: {} } },
+      {
+        method: 'POST',
+        path: '/api/devices',
+        body: { name: 'DT-03', uniqueId: '490154203237518', model: 'gt06', phone: '+62 812 3', category: 'truck', attributes: { source: 'tracker' } },
+      },
       { method: 'POST', path: '/api/permissions', body: { userId: 2, deviceId: 3 } },
       { method: 'POST', path: '/api/permissions', body: { userId: 3, deviceId: 3 } },
     ])
@@ -152,18 +156,31 @@ describe('truck management against Traccar', () => {
 
   it('refuses a tracker ID another truck already has, before asking the server', async () => {
     const { source, changes } = server()
-    await expect(source.trucks!.save({ name: 'DT-03', trackerId: 'DT-02', driver: '' })).rejects.toThrow(
+    await expect(source.trucks!.save({ name: 'DT-03', source: 'simulator', trackerId: 'DT-02', model: '', phone: '', driver: '' })).rejects.toThrow(
       'Tracker ID DT-02 is already used by DT-02.',
     )
     expect(changes()).toEqual([])
   })
 
-  it('edits in place, keeping other attributes; an empty driver removes the label', async () => {
+  it('edits in place, keeping other attributes; an empty driver removes the label; a test truck drops model and SIM', async () => {
     const { source, changes } = server()
-    await source.trucks!.save({ name: 'DT-01', trackerId: 'dt-01', driver: '' }, '1')
+    await source.trucks!.save({ name: 'DT-01', source: 'simulator', trackerId: 'sim-dt-01', model: 'teltonika', phone: '+62 812 1', driver: '' }, '1')
     expect(changes()).toEqual([
-      { method: 'PUT', path: '/api/devices/1', body: { id: 1, name: 'DT-01', uniqueId: 'dt-01', attributes: { speedLimit: 30 } } },
+      {
+        method: 'PUT',
+        path: '/api/devices/1',
+        body: {
+          id: 1,
+          name: 'DT-01',
+          uniqueId: 'sim-dt-01',
+          model: null,
+          phone: null,
+          category: 'truck',
+          attributes: { speedLimit: 30, source: 'simulator' },
+        },
+      },
     ])
+    expect((await source.getCars())[0]).toMatchObject({ name: 'DT-01', test: true })
   })
 
   it('disables and enables without losing anything, and deletes on request', async () => {

@@ -35,6 +35,7 @@ const cfg: Config = {
   siteGeofenceName: 'Site',
   minPauseMs: 2 * MIN,
   pauseDeriveMaxRangeMs: 2 * 24 * H,
+  trackerServer: '',
 }
 
 const pos = (fixTime: number, o: Partial<Position> = {}): Position => ({

@@ -15,18 +15,17 @@
   color: var(--muted);
 }
 
-.manage {
-  border: 0;
-  background: none;
-  padding: 4px 0;
-  color: var(--blue);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.manage:focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
+.testBadge {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--orange-tint);
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  vertical-align: 2px;
 }
 
 .carButton {

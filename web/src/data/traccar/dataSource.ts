@@ -11,11 +11,11 @@
 //    where the current drive began.
 import { config as appConfig, type Config } from '../../config'
 import { carStatus, sortPositions, summarizeTrips } from '../derive'
-import { EditRefused, truckInputProblem, type CheckpointEditor, type ConnectionState, type DataSource, type TruckEditor, type TruckRecord } from '../source'
+import { EditRefused, truckInputProblem, type CheckpointEditor, type ConnectionState, type DataSource, type TruckEditor, type TruckInput, type TruckRecord } from '../source'
 import type { Car, Geofence, Position, Stop, Summary, Trip } from '../types'
 import type { TraccarDevice, TraccarGeofence, TraccarPosition, TraccarSocketMessage, TraccarStop, TraccarTrip, TraccarUser } from './api'
 import { createTraccarAuth, type TraccarAuth } from './auth'
-import { toCar, toGeofences, toPosition, toTrip } from './convert'
+import { toCar, toGeofences, toPosition, toTrip, truckSourceOf } from './convert'
 import { createHttp, isoParam, TraccarHttpError, type FetchLike } from './http'
 import { buildInProgressTrip, findOpenTrip, OPEN_TRIP_TOLERANCE_MS, withInProgress } from './inProgress'
 import { derivePauses, totalPauseMs } from './pauses'
@@ -160,10 +160,28 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
   const toRecord = (d: TraccarDevice): TruckRecord => ({
     id: String(d.id),
     name: d.name,
+    source: truckSourceOf(d),
     trackerId: d.uniqueId ?? '',
+    model: d.model ?? '',
+    phone: d.phone ?? '',
     driver: toCar(d).driver,
     enabled: !d.disabled,
   })
+  /** The device fields the app owns. Model and SIM number only mean something for a real tracker. */
+  const deviceFields = (input: TruckInput) => {
+    const real = input.source === 'tracker'
+    return {
+      name: input.name.trim(),
+      uniqueId: input.trackerId.trim(),
+      model: real && input.model ? input.model : null,
+      phone: real && input.phone.trim() ? input.phone.trim() : null,
+      category: 'truck',
+    }
+  }
+  const attributesFor = (input: TruckInput, kept: Record<string, unknown> = {}) => {
+    const driver = input.driver.trim()
+    return { ...kept, source: input.source, ...(driver ? { driver } : {}) }
+  }
   const deviceById = async (id: string): Promise<TraccarDevice> => {
     getDevices.reset()
     const device = (await getDevices()).find((d) => String(d.id) === id)
@@ -180,16 +198,13 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
       const others = (await getDevices()).map(toRecord).filter((t) => t.id !== id)
       const problem = truckInputProblem(input, others)
       if (problem) throw new EditRefused(problem)
-      const name = input.name.trim()
-      const uniqueId = input.trackerId.trim()
-      const driver = input.driver.trim()
       if (id === undefined) {
-        const created = await http.send<TraccarDevice>('POST', '/api/devices', { name, uniqueId, attributes: driver ? { driver } : {} })
+        const created = await http.send<TraccarDevice>('POST', '/api/devices', { ...deviceFields(input), attributes: attributesFor(input) })
         if (created) await shareWithEveryone({ deviceId: created.id })
       } else {
         const current = await deviceById(id)
-        const { driver: _old, driverName: _oldName, ...attributes } = current.attributes ?? {}
-        await http.send('PUT', `/api/devices/${id}`, { ...current, name, uniqueId, attributes: driver ? { ...attributes, driver } : attributes })
+        const { driver: _old, driverName: _oldName, ...kept } = current.attributes ?? {}
+        await http.send('PUT', `/api/devices/${id}`, { ...current, ...deviceFields(input), attributes: attributesFor(input, kept) })
       }
       carsChanged()
     },

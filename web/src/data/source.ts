@@ -1,3 +1,4 @@
+import type { TruckSource } from './trackers'
 import type { Car, CheckpointInput, Geofence, Position, Summary, Stop, Trip } from './types'
 
 /** State of the live link. 'reconnecting' covers the first connect and short outages, 'offline' a longer one. */
@@ -16,13 +17,19 @@ export interface CheckpointEditor {
 export interface TruckRecord {
   id: string
   name: string
+  /** Test trucks are driven by the simulator or the phone app; real ones have a GPS tracker. */
+  source: TruckSource
   /** What the tracker sends as its ID: the IMEI, the phone app's ID or the simulator's --id. */
   trackerId: string
+  /** Tracker model key (TRACKER_MODELS), real trucks only; '' when unknown. */
+  model: string
+  /** The tracker's SIM phone number (to configure it by SMS), real trucks only. */
+  phone: string
   driver: string
   enabled: boolean
 }
 
-export type TruckInput = Pick<TruckRecord, 'name' | 'trackerId' | 'driver'>
+export type TruckInput = Pick<TruckRecord, 'name' | 'source' | 'trackerId' | 'model' | 'phone' | 'driver'>
 
 /** A change refused for a reason the person can fix; the message says how. */
 export class EditRefused extends Error {
