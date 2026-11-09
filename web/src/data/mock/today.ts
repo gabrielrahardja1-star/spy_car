@@ -1,9 +1,10 @@
 // "Today": a scripted story anchored to the clock at creation time.
-//   DT-01: haul cycles Pit W <-> Area 2 since the shift started, now on a live loop that left Pit W 6 minutes ago.
-//   DT-02: one loaded run Pit S -> Area 2, held 7 minutes at a crossing and with a 6 minute signal gap, then parked in Area 2.
+//   DT-01: haul cycles CWP <-> Area 2 since the shift started, now on a live loop that left CWP 6 minutes ago.
+//   DT-02: one slow loaded run Ventilasi -> Area 2, held 7 minutes at a crossing and with a 6 minute signal gap, then parked
+//   in Area 2.
 // Everything is placed relative to `anchor` (but never before the start of the local day), so it looks right at any hour.
 import type { Position, SignalGap, Trip } from '../types'
-import { PIT_S, PIT_W, SITE, placeAt } from './places'
+import { CWP, SITE, VENTILASI, placeAt } from './places'
 import { pointAt, roadPath, toPath, type Path } from './route'
 import { buildTrip, createLoopDriver, measure, tripId, type LoopDriver } from './trips'
 import { HOUR, hashSeed, makeFix, MINUTE } from './util'
@@ -46,12 +47,12 @@ export const legMs = (path: Path, kmh: number) => Math.round((path.length / 1000
 
 export function buildTodayPlan(dayStart: number, anchor: number): TodayPlan {
   const gaps: SignalGap[] = []
-  const loaded = roadPath(PIT_W.road, true)
-  const empty = roadPath(PIT_W.road, false)
+  const loaded = roadPath(CWP.road, true)
+  const empty = roadPath(CWP.road, false)
 
-  // DT-01: the endless loop Pit W -> Area 2 -> Pit W, started 6 minutes ago.
+  // DT-01: the endless loop CWP -> Area 2 -> CWP, started 6 minutes ago.
   const liveStart = Math.max(dayStart, anchor - 6 * MINUTE)
-  const loop = toPath([...PIT_W.road, ...PIT_W.road.slice(0, -1).reverse()])
+  const loop = toPath([...CWP.road, ...CWP.road.slice(0, -1).reverse()])
   const driver = createLoopDriver(CAR1, loop, liveStart, TODAY_INTERVAL_MS, 26, hashSeed(dayStart, 3))
 
   // Finished cycles from 06:30, each: load, loaded run, dump, empty run. The last load ends when the live loop starts.
@@ -77,11 +78,11 @@ export function buildTodayPlan(dayStart: number, anchor: number): TodayPlan {
   car1.push(parkAt(loaded, false, parkedSince, liveStart))
   car1.push({ kind: 'live', start: liveStart, driver })
 
-  // DT-02: Pit S -> Area 2 loaded, ending by 13:40: held 4 minutes in (7 min, so real Traccar splits the trip there),
-  // then a 6 minute gap 13 minutes in.
+  // DT-02: Ventilasi -> Area 2 loaded at 12 km/h, ending by 13:40: held 2 minutes in (7 min, so real Traccar splits the
+  // trip there), then a 6 minute gap 10 minutes in.
   const car2: Piece[] = []
-  const haul = roadPath(PIT_S.road, true)
-  const haulMs = legMs(haul, LOADED_KMH)
+  const haul = roadPath(VENTILASI.road, true)
+  const haulMs = legMs(haul, 12)
   const tripEnd = Math.min(dayStart + 13 * HOUR + 40 * MINUTE, anchor - 20 * MINUTE)
   const holdMs = 7 * MINUTE
   const tripStart = tripEnd - haulMs - holdMs
@@ -91,9 +92,9 @@ export function buildTodayPlan(dayStart: number, anchor: number): TodayPlan {
       start: tripStart,
       path: haul,
       drivingMs: haulMs,
-      stops: [{ atDrivingMs: 4 * MINUTE, durMs: holdMs }],
+      stops: [{ atDrivingMs: 2 * MINUTE, durMs: holdMs }],
       intervalMs: TODAY_INTERVAL_MS,
-      gap: { offsetMs: 13 * MINUTE, durMs: 6 * MINUTE },
+      gap: { offsetMs: 10 * MINUTE, durMs: 6 * MINUTE },
       seed: hashSeed(dayStart, 5),
     })
     car2.push(parkAt(haul, false, dayStart, tripStart))
@@ -101,7 +102,7 @@ export function buildTodayPlan(dayStart: number, anchor: number): TodayPlan {
     car2.push(parkAt(haul, true, tripEnd, Infinity))
     if (built.gap) gaps.push(built.gap)
   } else {
-    car2.push({ kind: 'park', from: dayStart, to: Infinity, lat: SITE.centre[0], lon: SITE.centre[1], course: 0 })
+    car2.push({ kind: 'park', from: dayStart, to: Infinity, lat: SITE.lat, lon: SITE.lon, course: 0 })
   }
 
   return {

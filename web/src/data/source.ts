@@ -1,15 +1,15 @@
 import type { TruckSource } from './trackers'
-import type { Car, CheckpointInput, Geofence, Position, Summary, Stop, Trip } from './types'
+import type { Car, Geofence, LocationInput, Position, Summary, Stop, Trip } from './types'
 
 /** State of the live link. 'reconnecting' covers the first connect and short outages, 'offline' a longer one. */
 export type ConnectionState = 'connected' | 'reconnecting' | 'offline'
 
-/** Adding, changing and deleting checkpoints (geofences with type = checkpoint). */
-export interface CheckpointEditor {
-  /** Whether the signed-in user may change checkpoints (Traccar: an administrator who is not read-only). */
+/** Adding, changing and deleting locations: start points, the end point (dump) and checkpoints, as circles. */
+export interface LocationEditor {
+  /** Whether the signed-in user may change locations (Traccar: an administrator who is not read-only). */
   canEdit(): Promise<boolean>
-  /** Creates a checkpoint, or replaces checkpoint `id` (name, centre and radius). */
-  save(input: CheckpointInput, id?: string): Promise<void>
+  /** Creates a location, or replaces location `id` (name, type, centre and radius). */
+  save(input: LocationInput, id?: string): Promise<void>
   remove(id: string): Promise<void>
 }
 
@@ -89,8 +89,8 @@ export interface DataSource {
    * Sources without a network link (the mock) leave it out. Returns an unsubscribe function.
    */
   onConnectionChange?(listener: (state: ConnectionState) => void): () => void
-  /** Optional: checkpoint editing. getGeofences reflects a change once its promise has resolved. */
-  checkpoints?: CheckpointEditor
+  /** Optional: location editing. getGeofences reflects a change once its promise has resolved. */
+  locations?: LocationEditor
   /** Optional: called after the geofences changed. Returns an unsubscribe function. */
   onGeofencesChange?(listener: () => void): () => void
   /** Optional: truck management. getCars reflects a change once its promise has resolved. */

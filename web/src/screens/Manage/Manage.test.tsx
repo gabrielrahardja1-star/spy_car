@@ -94,38 +94,50 @@ describe('Manage', () => {
     expect(screen.queryByText('DT-02')).toBeNull()
   })
 
-  it('adds a checkpoint from pasted coordinates, edits it and deletes it after confirming', async () => {
+  it('adds a start point pasted as on WhatsApp, warns about an overlap, edits and deletes', async () => {
     renderApp('/manage')
-    await userEvent.click(await screen.findByRole('button', { name: 'Checkpoints (4)' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Add checkpoint' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Give the checkpoint a name.')
+    await userEvent.click(await screen.findByRole('button', { name: 'Locations (6)' }))
+    expect(within(screen.getByRole('list', { name: 'Start points' })).getByText('Belakang Conveyor')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'End point' })).getByText('Area 2')).toBeInTheDocument()
+    expect(within(screen.getByRole('list', { name: 'Checkpoints' })).getByText('CP Area 2 gate')).toBeInTheDocument()
 
-    await userEvent.type(screen.getByLabelText('Name'), 'CP5 Tip face')
-    await userEvent.type(screen.getByLabelText('Location'), 'nowhere')
-    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
-    expect(screen.getByRole('alert')).toHaveTextContent('Tap the map, or paste the location')
+    await userEvent.click(screen.getByRole('button', { name: 'Add location' }))
+    const save = () => userEvent.click(screen.getByRole('button', { name: 'Save location' }))
+    await save()
+    expect(screen.getByRole('alert')).toHaveTextContent('Give the location a name.')
 
-    await userEvent.clear(screen.getByLabelText('Location'))
-    await userEvent.type(screen.getByLabelText('Location'), '-3.171900, 115.282100')
-    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
-    const checkpoints = () => screen.getByRole('list', { name: 'Checkpoints' })
-    const row = (await within(checkpoints()).findByText('CP5 Tip face')).closest('li')!
-    expect(row).toHaveTextContent(`3°10'18.84"S 115°16'55.56"E · 30 m`)
-    expect(screen.getByRole('button', { name: 'Checkpoints (5)' })).toBeInTheDocument()
+    // The size follows the type until it is typed by hand.
+    expect(screen.getByLabelText('Size (radius, m)')).toHaveValue(50)
+    await userEvent.selectOptions(screen.getByLabelText('Type'), 'checkpoint')
+    expect(screen.getByLabelText('Size (radius, m)')).toHaveValue(30)
+    await userEvent.selectOptions(screen.getByLabelText('Type'), 'place')
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Workshop')
+    await userEvent.type(screen.getByLabelText('Location'), `long : 115°16'40.00"E{enter}Lat :   3°10'30.00"S`)
+    await save()
+    const starts = () => screen.getByRole('list', { name: 'Start points' })
+    const row = (await within(starts()).findByText('Workshop')).closest('li')!
+    expect(row).toHaveTextContent(`3°10'30.00"S 115°16'40.00"E · 50 m`)
+
+    // Right on top of Klinik: warned first, saved on the second press.
+    await userEvent.click(screen.getByRole('button', { name: 'Add location' }))
+    await userEvent.type(screen.getByLabelText('Name'), 'Klinik 2')
+    await userEvent.type(screen.getByLabelText('Location'), '-3.178875, 115.272158')
+    await save()
+    expect(screen.getByRole('alert')).toHaveTextContent('This circle overlaps Klinik.')
+    await save()
+    expect(await within(starts()).findByText('Klinik 2')).toBeInTheDocument()
 
     await userEvent.click(within(row).getByRole('button', { name: 'Edit' }))
-    expect(screen.getByLabelText('Location')).toHaveValue(`3°10'18.84"S 115°16'55.56"E`)
     await userEvent.clear(screen.getByLabelText('Size (radius, m)'))
-    await userEvent.type(screen.getByLabelText('Size (radius, m)'), '50')
-    await userEvent.click(screen.getByRole('button', { name: 'Save checkpoint' }))
-    const edited = (await within(checkpoints()).findByText(/· 50 m$/)).closest('li')!
-    expect(edited).toHaveTextContent('CP5 Tip face')
+    await userEvent.type(screen.getByLabelText('Size (radius, m)'), '80')
+    await save()
+    const edited = (await within(starts()).findByText(/· 80 m$/)).closest('li')!
+    expect(edited).toHaveTextContent('Workshop')
 
     await userEvent.click(within(edited).getByRole('button', { name: 'Delete' }))
-    expect(edited).toHaveTextContent('Delete CP5 Tip face for everyone?')
+    expect(edited).toHaveTextContent('Delete Workshop for everyone? Trips from or to it lose its name.')
     await userEvent.click(within(edited).getByRole('button', { name: 'Delete' }))
-    expect(await screen.findByRole('button', { name: 'Checkpoints (4)' })).toBeInTheDocument()
-    expect(within(checkpoints()).queryByText('CP5 Tip face')).toBeNull()
+    await waitFor(() => expect(starts()).not.toHaveTextContent('Workshop'))
   })
 })

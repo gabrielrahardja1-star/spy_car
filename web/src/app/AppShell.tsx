@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useDataSource } from '../data/DataProvider'
-import { useCanEditCheckpoints, useCanEditTrucks, useCars, useLastMessageAt, useNow } from '../data/hooks'
+import { useCanEditLocations, useCanEditTrucks, useCars, useLastMessageAt, useNow } from '../data/hooks'
 import type { ConnectionState } from '../data/source'
 import { useSession } from './session'
 import styles from './AppShell.module.css'
@@ -60,8 +60,8 @@ function Subtitle() {
 
 export function AppShell() {
   const canEditTrucks = useCanEditTrucks()
-  const canEditCheckpoints = useCanEditCheckpoints()
-  const canManage = canEditTrucks || canEditCheckpoints
+  const canEditLocations = useCanEditLocations()
+  const canManage = canEditTrucks || canEditLocations
   return (
     <div className={styles.page}>
       <header className={styles.header}>

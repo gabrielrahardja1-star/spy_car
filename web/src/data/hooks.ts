@@ -116,10 +116,10 @@ export function useGeofences(): Async<Geofence[]> {
   return shown.source === source && result.status === 'loading' ? shown.result : result
 }
 
-/** Whether the signed-in user may add and change checkpoints. False while unknown and for sources without editing. */
-export function useCanEditCheckpoints(): boolean {
+/** Whether the signed-in user may add and change locations. False while unknown and for sources without editing. */
+export function useCanEditLocations(): boolean {
   const source = useDataSource()
-  const result = useAsync(() => source.checkpoints?.canEdit() ?? Promise.resolve(false), [source])
+  const result = useAsync(() => source.locations?.canEdit() ?? Promise.resolve(false), [source])
   return result.status === 'ready' && result.data
 }
 

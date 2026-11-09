@@ -65,6 +65,11 @@ describe('toGeofences', () => {
     expect(out[1].polygon).toHaveLength(33)
   })
 
+  it('marks a geofence with the attribute type = end as the site zone, whatever its name', () => {
+    const out = toGeofences([{ id: 7, name: 'Area 2', area: 'CIRCLE (5 5, 150)', attributes: { type: 'End' } }], { ...cfg, siteGeofenceName: 'Site' })
+    expect(out.map((g) => [g.name, g.kind])).toEqual([['Area 2', 'site']])
+  })
+
   it('marks geofences with the attribute type = checkpoint (any case) as checkpoints', () => {
     const out = toGeofences(
       [

@@ -212,37 +212,35 @@ The admin screen of Traccar is deliberately **not** on the internet. You reach i
    name the variable) and run `docker compose up -d`. **Disable** hides a truck but keeps its history; **Delete** also
    deletes every position it ever sent.
 
-6. **Draw ONE geofence named exactly `Site`.** Open *Geofences* (map menu or *Settings > Geofences*), add an area
-   (polygon or circle) around the work site, and name it **`Site`** (capital S, nothing else).
-   *Why:* the app draws the orange "Site zone" from the geofence with this name, and it names trips ("Town to Site")
-   from the geofences they start and end in. If the name differs, the zone does not show.
-   (The name is a setting: `VITE_SITE_GEOFENCE_NAME`. A rebuild is needed to change it.)
+6. **Add the locations** in the app: **Manage** tab > **Locations** > **Add location**. Paste the coordinates the way
+   they are written on site (`long : 115°16'19.77"E  lat : 3°10'43.95"S`, either order) or tap the map, name it, and pick
+   its type:
+   - **Start point** (where trucks load, e.g. Klinik, Ventilasi, CWP, Belakang Conveyor): trips are named from it,
+     "Klinik → Area 2". Default 50 m; Ventilasi and CWP are only 120 m apart, so keep start points small.
+   - **End point (dump)** (Area 2): drawn as the orange zone; trips "arrive at Area 2 zone". Default 150 m.
+   - **Checkpoint** (a gate or junction on the way): every pass is logged in Route history ("Passed CP Area 2 gate") and
+     the Live map shows each truck's last pass. Default 30 m.
 
-7. **Checkpoints** (gates, ramps, the dump entrance) are added **in the app**: sign in with an admin account, open the
-   **Manage** tab, switch to **Checkpoints** and press **Add checkpoint**. Tap the map where it is, or paste the
-   coordinates (`3°10'21.04"S 115°16'54.51"E` or `-3.172511, 115.281808`), give it a name such as `CP1 West gate` and a
-   size (about 30 m covers a haul road), and save. Edit and Delete are on each row. Everyone sees the change at once.
-   - Only an **administrator who is not read-only** can change checkpoints. In Traccar (SSH tunnel), tick **Readonly** on
-     every user who should only look; they do not see the Manage tab.
-   - The app logs every pass in Route history ("Passed CP1 West gate") and shows each truck's last pass on the Live map.
-     Passes are worked out from the trucks' positions, so no Traccar notification setup is needed, and a checkpoint added
-     later also shows passes in older history.
-   - A checkpoint is a Traccar geofence with the attribute `type` = `checkpoint`, so one drawn in Traccar's own screen
-     (with that attribute) works too. Pits and other areas are plain geofences (no attribute).
+   The app warns when a circle overlaps another location. Everyone sees a change at once, and passes are worked out from
+   the trucks' positions, so a location added later also shows up in older history.
+7. **Who may change things.** Only an administrator who is **not read-only** sees the Manage tab. In Traccar (SSH
+   tunnel), tick **Readonly** on every user who should only look. (Under the hood a location is a Traccar geofence with
+   the attribute `type` = `start`, `end` or `checkpoint`; one named like `VITE_SITE_GEOFENCE_NAME` also counts as the end
+   point.)
 
-7. **Create the shared viewer account.** *Settings > Users > +*. Use a placeholder email such as `viewer@example.com`
+8. **Create the shared viewer account.** *Settings > Users > +*. Use a placeholder email such as `viewer@example.com`
    (or a real shared mailbox), a long unique password, and tick **Readonly**.
    A read-only user can look at everything assigned to it but cannot add, change or delete anything.
    Leave *Administrator* and *Disable reports* unticked (the app needs reports for the history and dashboard screens). Save.
 
-8. **Give the viewer access.** Traccar shows a user only what is linked to that user. In *Settings > Users*, open the viewer's
+9. **Give the viewer access.** Traccar shows a user only what is linked to that user. In *Settings > Users*, open the viewer's
    **Connections** (link) option and tick:
    - **Devices:** `Car 01`, `Car 02`
    - **Geofences:** `Site`
 
    Without these links the viewer logs in but sees no cars and no site zone.
 
-9. **Log into the app.** Open `https://tracker.example.com` (Mode A) and sign in with the **viewer** account.
+10. **Log into the app.** Open `https://tracker.example.com` (Mode A) and sign in with the **viewer** account.
    Do not use the admin account in the app. You can now close the SSH tunnel.
 
 ### Mode B proxy snippets
@@ -516,7 +514,7 @@ Tracker protocols are **not encrypted**. Anyone on the network path could read t
 2. `cd deploy && docker compose logs --tail 100 traccar`. A line mentioning an *unknown device* with an ID means the Identifier in Traccar does not match; fix it.
 3. Is the port reachable from outside? From another computer: `nc -vz tracker.example.com 5055` (use the tracker's port). "Connection refused" or a time-out means the `..._BIND` value, the firewall, or the VPS provider's network rules (some providers have a separate firewall in their control panel) block it.
 4. Is the protocol enabled? `protocols.enable` in `deploy/traccar.xml` must list it. After editing: `docker compose restart traccar`.
-5. Viewer sees nothing but admin does: the devices and the `Site` geofence are not linked to the viewer (First run, step 8).
+5. Viewer sees nothing but admin does: the devices and the `Site` geofence are not linked to the viewer (First run, step 9). Trucks and locations added in the Manage tab are shared with every user automatically.
 6. Temporarily set `logger.level` to `all` in `traccar.xml`, restart, and watch `docker compose logs -f traccar` while the tracker connects. Set it back afterwards (it is very noisy).
 
 **The app asks for the login again and again (login loop)**

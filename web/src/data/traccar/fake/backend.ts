@@ -6,6 +6,7 @@ import type { DataSource } from '../../source'
 import type { Car, Geofence, Position, Trip } from '../../types'
 import type { TraccarDevice, TraccarGeofence, TraccarPosition, TraccarStop, TraccarTrip } from '../api'
 import { pathLengthM } from '../geo'
+import { LOCATION_TYPE } from '../convert'
 import { circleWkt, ringToPolygonWkt } from '../wkt'
 
 const KMH_PER_KNOT = 1.852
@@ -131,7 +132,7 @@ export async function createFakeBackend(source: DataSource, opts: FakeBackendOpt
       id: i + 1,
       name: g.name,
       area: geofenceArea(g),
-      ...(g.kind === 'checkpoint' ? { attributes: { type: 'checkpoint' } } : {}),
+      attributes: { type: LOCATION_TYPE[g.kind] },
     })),
     latestPositions: async () => convert(await source.getLatestPositions()),
     route: async (deviceIds, from, to) => {

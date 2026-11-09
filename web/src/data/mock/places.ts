@@ -1,79 +1,72 @@
-// Mine-site geofences around "Area 2" (South Kalimantan). The dump is the site zone; each pit's loading area is a place.
-// Centres are the ends of the real haul roads in ./haulRoads; outlines are made up.
-import type { CheckpointInput, Geofence } from '../types'
+// The mine site around "Area 2" (South Kalimantan), from the site's own coordinates (Nov 2026): four start points where
+// trucks load, and Area 2, the end point where they tip (the site zone). Every zone is a circle, the way the Manage tab
+// makes them. One example checkpoint sits on the approach road all four routes share into Area 2.
+import type { Geofence, LocationInput } from '../types'
 import { circleToRing } from '../traccar/wkt'
-import { PIT_N_ROAD, PIT_S_ROAD, PIT_W_ROAD } from './haulRoads'
+import { CONVEYOR_ROAD, CWP_ROAD, KLINIK_ROAD, VENTILASI_ROAD } from './haulRoads'
 import { pointInRing } from './util'
 
-export interface PlaceDef {
+export interface Zone {
   id: string
   name: string
-  kind: 'site' | 'place' | 'checkpoint'
-  /** [lat, lon] */
-  centre: [number, number]
-  /** Outline as metre offsets [east, north] from the centre. */
-  outline: [number, number][]
+  kind: Geofence['kind']
+  lat: number
+  lon: number
+  radiusM: number
 }
 
-export const SITE: PlaceDef = {
-  id: 'g-area2',
-  name: 'Area 2',
-  kind: 'site',
-  centre: PIT_W_ROAD[PIT_W_ROAD.length - 1],
-  outline: [[-190, -65], [-110, -190], [115, -175], [215, -30], [160, 165], [-85, 195], [-200, 80]],
-}
-
-export interface PitDef extends PlaceDef {
-  /** Haul road from this pit's loading point to Area 2, [lat, lon]. */
+/** A start point and the real road from it to Area 2 ([lat, lon], start first). */
+export interface StartPoint extends Zone {
   road: [number, number][]
 }
 
-const PIT_OUTLINE: [number, number][] = [[-200, -120], [-60, -210], [150, -170], [210, 20], [110, 190], [-120, 180], [-210, 50]]
-const pit = (id: string, name: string, road: [number, number][]): PitDef => ({ id, name, kind: 'place', centre: road[0], outline: PIT_OUTLINE, road })
+export const SITE: Zone = { id: 'g-area2', name: 'Area 2', kind: 'site', lat: -3.172511, lon: 115.281808, radiusM: 150 } // 3°10'21.04"S 115°16'54.51"E
 
-export const PIT_W = pit('g-pit-w', 'Pit W', PIT_W_ROAD)
-export const PIT_N = pit('g-pit-n', 'Pit N', PIT_N_ROAD)
-export const PIT_S = pit('g-pit-s', 'Pit S', PIT_S_ROAD)
-export const PITS: PitDef[] = [PIT_W, PIT_N, PIT_S]
+/** Ventilasi and CWP are only 120 m apart, so start points stay small enough not to overlap. */
+const START_RADIUS_M = 50
+const start = (id: string, name: string, lat: number, lon: number, road: [number, number][]): StartPoint => ({
+  id,
+  name,
+  kind: 'place',
+  lat,
+  lon,
+  radiusM: START_RADIUS_M,
+  road,
+})
 
-export const PLACES: PlaceDef[] = [SITE, ...PITS]
+export const KLINIK = start('g-klinik', 'Klinik', -3.178875, 115.272158, KLINIK_ROAD) // 3°10'43.95"S 115°16'19.77"E
+export const VENTILASI = start('g-ventilasi', 'Ventilasi', -3.177925, 115.273756, VENTILASI_ROAD) // 3°10'40.53"S 115°16'25.52"E
+export const CWP = start('g-cwp', 'CWP', -3.176917, 115.273364, CWP_ROAD) // 3°10'36.90"S 115°16'24.11"E
+export const CONVEYOR = start('g-conveyor', 'Belakang Conveyor', -3.176414, 115.275161, CONVEYOR_ROAD) // 3°10'35.09"S 115°16'30.58"E
+export const STARTS: StartPoint[] = [KLINIK, VENTILASI, CWP, CONVEYOR]
 
-export const CHECKPOINT_RADIUS_M = 30
-const checkpoint = (id: string, name: string, centre: [number, number]): PlaceDef => ({ id, name, kind: 'checkpoint', centre, outline: [] })
+export const PLACES: Zone[] = [SITE, ...STARTS]
 
-/** Example checkpoints on the haul roads, until the real ones are known. Not places: trips never start or end "at" one. */
-export const CHECKPOINTS: PlaceDef[] = [
-  checkpoint('g-cp1', 'CP1 West gate', [-3.172592, 115.279189]), // Pit W and Pit N trucks, just outside Area 2
-  checkpoint('g-cp2', 'CP2 South gate', [-3.174385, 115.281022]), // Pit S trucks, just outside Area 2
-  checkpoint('g-cp3', 'CP3 Pit W ramp', [-3.170372, 115.271208]),
-  checkpoint('g-cp4', 'CP4 South haul road', [-3.196313, 115.278824]),
+/** Example checkpoint, until real ones are added in the Manage tab. Trips never start or end "at" a checkpoint. */
+export const CHECKPOINTS: Zone[] = [
+  { id: 'g-cp-gate', name: 'CP Area 2 gate', kind: 'checkpoint', lat: -3.172592, lon: 115.279189, radiusM: 30 },
 ]
 
-function toPolygon(p: PlaceDef): [number, number][] {
-  const [lat0, lon0] = p.centre
-  const mPerLon = 111320 * Math.cos((lat0 * Math.PI) / 180)
-  const ring = p.outline.map(([e, n]): [number, number] => [lon0 + e / mPerLon, lat0 + n / 110574])
-  ring.push([ring[0][0], ring[0][1]])
-  return ring
-}
-
-export function buildGeofences(): Geofence[] {
-  const zones = PLACES.map((p): Geofence => ({ id: p.id, name: p.name, kind: p.kind, polygon: toPolygon(p) }))
-  return [...zones, ...CHECKPOINTS.map((p) => checkpointGeofence(p.id, { name: p.name, lat: p.centre[0], lon: p.centre[1], radiusM: CHECKPOINT_RADIUS_M }))]
-}
-
-/** A checkpoint as a circular geofence, the way Traccar returns one drawn as a circle. */
-export function checkpointGeofence(id: string, input: CheckpointInput): Geofence {
+function toGeofence(z: Zone): Geofence {
   return {
-    id,
-    name: input.name,
-    kind: 'checkpoint',
-    polygon: circleToRing(input.lat, input.lon, input.radiusM),
-    circle: { lat: input.lat, lon: input.lon, radiusM: input.radiusM },
+    id: z.id,
+    name: z.name,
+    kind: z.kind,
+    polygon: circleToRing(z.lat, z.lon, z.radiusM),
+    circle: { lat: z.lat, lon: z.lon, radiusM: z.radiusM },
   }
 }
 
-const polygons = PLACES.map((p) => ({ name: p.name, ring: toPolygon(p) }))
+export function buildGeofences(): Geofence[] {
+  return [...PLACES, ...CHECKPOINTS].map(toGeofence)
+}
+
+/** A location as a circular geofence, the way Traccar returns one drawn as a circle. */
+export function locationGeofence(id: string, input: LocationInput): Geofence {
+  return toGeofence({ id, name: input.name, kind: input.kind, lat: input.lat, lon: input.lon, radiusM: input.radiusM })
+}
+
+const polygons = PLACES.map((p) => ({ name: p.name, ring: circleToRing(p.lat, p.lon, p.radiusM) }))
 
 /** Name of the geofence containing the point, or null. */
 export function placeAt(lat: number, lon: number): string | null {

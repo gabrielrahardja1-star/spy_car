@@ -27,8 +27,8 @@ describe('LiveMap', () => {
   it("shows each truck's last checkpoint pass today", async () => {
     renderApp('/')
     await screen.findByText('DT-01')
-    expect(await within(carButton('DT-01')).findByText(/^Passed CP\d .* · \d\d:\d\d$/)).toBeInTheDocument()
-    expect(await within(carButton('DT-02')).findByText(/^Passed CP2 South gate · /)).toBeInTheDocument()
+    expect(await within(carButton('DT-01')).findByText(/^Passed CP Area 2 gate · \d\d:\d\d$/)).toBeInTheDocument()
+    expect(await within(carButton('DT-02')).findByText(/^Passed CP Area 2 gate · /)).toBeInTheDocument()
   })
 
   it('shows no driver line when the car has no driver label (real tracker data)', async () => {

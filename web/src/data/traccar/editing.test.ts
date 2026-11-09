@@ -70,17 +70,17 @@ function server(opts: { me?: TraccarUser | null; users?: TraccarUser[]; refuse?:
   return { source, calls, changes: () => calls.filter((c) => c.method !== 'GET') }
 }
 
-describe('checkpoint editing against Traccar', () => {
+describe('location editing against Traccar', () => {
   it('lets only a signed-in administrator who is not read-only edit', async () => {
-    expect(await server().source.checkpoints!.canEdit()).toBe(true)
-    expect(await server({ me: { id: 1, administrator: true, readonly: true } }).source.checkpoints!.canEdit()).toBe(false)
-    expect(await server({ me: { id: 2 } }).source.checkpoints!.canEdit()).toBe(false)
-    expect(await server({ me: null }).source.checkpoints!.canEdit()).toBe(false)
+    expect(await server().source.locations!.canEdit()).toBe(true)
+    expect(await server({ me: { id: 1, administrator: true, readonly: true } }).source.locations!.canEdit()).toBe(false)
+    expect(await server({ me: { id: 2 } }).source.locations!.canEdit()).toBe(false)
+    expect(await server({ me: null }).source.locations!.canEdit()).toBe(false)
   })
 
   it('creates a circle marked as a checkpoint and shares it with every other user', async () => {
     const { source, changes } = server()
-    await source.checkpoints!.save({ name: ' CP2 South gate ', lat: -3.174385, lon: 115.281022, radiusM: 25 })
+    await source.locations!.save({ name: ' CP2 South gate ', kind: 'checkpoint', lat: -3.174385, lon: 115.281022, radiusM: 25 })
     expect(changes()).toEqual([
       {
         method: 'POST',
@@ -95,7 +95,7 @@ describe('checkpoint editing against Traccar', () => {
   it('updates in place, keeping the fields and attributes it does not edit', async () => {
     const { source, changes } = server()
     await source.getGeofences()
-    await source.checkpoints!.save({ name: 'CP1 West gate', lat: -3.1726, lon: 115.2792, radiusM: 40 }, '8')
+    await source.locations!.save({ name: 'CP1 West gate', kind: 'checkpoint', lat: -3.1726, lon: 115.2792, radiusM: 40 }, '8')
     expect(changes()).toEqual([
       {
         method: 'PUT',
@@ -113,14 +113,27 @@ describe('checkpoint editing against Traccar', () => {
     ])
     let told = 0
     source.onGeofencesChange!(() => told++)
-    await source.checkpoints!.remove('8')
+    await source.locations!.remove('8')
     expect(told).toBe(1)
     expect((await source.getGeofences()).map((g) => g.name)).toEqual(['Area 2'])
   })
 
+  it('saves a start point and an end point with their type, and reads them back as a place and the site zone', async () => {
+    const { source, changes } = server()
+    await source.locations!.save({ name: 'Klinik', kind: 'place', lat: -3.178875, lon: 115.272158, radiusM: 50 })
+    await source.locations!.save({ name: 'Dump B', kind: 'site', lat: -3.17, lon: 115.29, radiusM: 150 })
+    expect(changes().filter((c) => c.path === '/api/geofences').map((c) => (c.body as TraccarGeofence).attributes)).toEqual([
+      { type: 'start' },
+      { type: 'end' },
+    ])
+    const kinds = (await source.getGeofences()).map((g) => [g.name, g.kind])
+    expect(kinds).toContainEqual(['Klinik', 'place'])
+    expect(kinds).toContainEqual(['Dump B', 'site'])
+  })
+
   it('passes on a refusal from the server and changes nothing', async () => {
     const { source } = server({ refuse: 403 })
-    await expect(source.checkpoints!.remove('8')).rejects.toMatchObject({ status: 403 })
+    await expect(source.locations!.remove('8')).rejects.toMatchObject({ status: 403 })
     expect((await source.getGeofences()).map((g) => g.name)).toEqual(['Area 2', 'CP1 Gate'])
   })
 })

@@ -4,7 +4,7 @@ import type { Position, SignalGap, Trip } from '../types'
 import { findSignalGaps } from '../derive'
 import { addDays } from '../format'
 import { createMockDataSource } from './index'
-import { PITS, SITE, placeAt } from './places'
+import { SITE, STARTS, placeAt } from './places'
 import { roadPath } from './route'
 import { zoneEvents } from '../zones'
 import { startFeed, BUFFER_RELEASE_MS } from './live'
@@ -26,7 +26,7 @@ describe('mock data source', () => {
     vi.useRealTimers()
   })
 
-  it('lists two trucks, the Area 2 site zone, three pits and four checkpoints, with closed rings', async () => {
+  it('lists two trucks, the Area 2 end point, four start points and the gate checkpoint, with closed rings', async () => {
     const ds = createMockDataSource({ now: () => NOW })
     expect((await ds.getCars()).map((c) => [c.id, c.name, c.driver])).toEqual([
       ['c1', 'DT-01', '[Driver name]'],
@@ -35,13 +35,11 @@ describe('mock data source', () => {
     const fences = await ds.getGeofences()
     expect(fences.map((g) => [g.name, g.kind])).toEqual([
       ['Area 2', 'site'],
-      ['Pit W', 'place'],
-      ['Pit N', 'place'],
-      ['Pit S', 'place'],
-      ['CP1 West gate', 'checkpoint'],
-      ['CP2 South gate', 'checkpoint'],
-      ['CP3 Pit W ramp', 'checkpoint'],
-      ['CP4 South haul road', 'checkpoint'],
+      ['Klinik', 'place'],
+      ['Ventilasi', 'place'],
+      ['CWP', 'place'],
+      ['Belakang Conveyor', 'place'],
+      ['CP Area 2 gate', 'checkpoint'],
     ])
     for (const g of fences) expect(g.polygon[0]).toEqual(g.polygon[g.polygon.length - 1])
   })
@@ -98,7 +96,7 @@ describe('mock data source', () => {
     const open = all.filter((t) => t.endTime === null)
     expect(open).toHaveLength(1)
     expect(open[0].carId).toBe('c1')
-    expect(open[0].startPlace).toBe('Pit W')
+    expect(open[0].startPlace).toBe('CWP')
     expect(open[0].endPlace).toBeNull()
     expect(open[0].distanceM).toBeGreaterThan(0)
     expect(all.filter((t) => t.carId === 'c2' && t.endTime === null)).toHaveLength(0)
@@ -111,21 +109,22 @@ describe('mock data source', () => {
     const trips = await ds.getTrips(null, TODAY, NOW + 1)
     const c1 = trips.filter((t) => t.carId === 'c1' && t.endTime !== null).reverse()
     const c2 = trips.filter((t) => t.carId === 'c2')
-    // DT-01: alternating loaded and empty runs on the Pit W haul road since 06:36.
+    // DT-01: alternating loaded and empty runs on the CWP haul road since 06:36.
     expect(c1.length).toBeGreaterThan(30)
     c1.forEach((t, i) => {
-      expect([t.startPlace, t.endPlace]).toEqual(i % 2 === 0 ? ['Pit W', 'Area 2'] : ['Area 2', 'Pit W'])
-      expect(t.distanceM / 1000).toBeGreaterThan(1.5)
-      expect(t.distanceM / 1000).toBeLessThan(1.75)
+      expect([t.startPlace, t.endPlace]).toEqual(i % 2 === 0 ? ['CWP', 'Area 2'] : ['Area 2', 'CWP'])
+      expect(t.distanceM / 1000).toBeGreaterThan(1.3)
+      expect(t.distanceM / 1000).toBeLessThan(1.5)
       expect(t.stops).toEqual([])
       if (i > 0) expect(t.startTime - c1[i - 1].endTime!).toBeGreaterThanOrEqual(5 * MINUTE)
     })
     expect(c1[0].startTime).toBe(TODAY + 6 * HOUR + 36 * MINUTE)
-    // DT-02: one loaded run from Pit S.
+    // DT-02: one loaded run from Ventilasi.
     expect(c2).toHaveLength(1)
-    expect([c2[0].startPlace, c2[0].endPlace]).toEqual(['Pit S', 'Area 2'])
-    expect(c2[0].distanceM / 1000).toBeGreaterThan(6.4)
-    expect(c2[0].distanceM / 1000).toBeLessThan(6.9)
+    expect([c2[0].startPlace, c2[0].endPlace]).toEqual(['Ventilasi', 'Area 2'])
+    expect(c2[0].distanceM / 1000).toBeGreaterThan(1.5) // the 6 minute gap cuts a corner of the 2.3 km road
+    expect(c2[0].distanceM / 1000).toBeLessThan(2.4)
+    expect(c2[0].stops.map((s) => s.durationMs)).toEqual([7 * MINUTE])
     for (const t of trips) expect(t.startTime).toBeGreaterThanOrEqual(TODAY)
     const latest = await ds.getLatestPositions()
     const car1 = latest.find((p) => p.carId === 'c1')!
@@ -294,27 +293,36 @@ describe('mock history realism', () => {
   const dayTrips = (trips: Trip[], carId: string, day: number) =>
     trips.filter((t) => t.carId === carId && t.startTime >= day && t.startTime < addDays(day, 1))
 
-  it('spreads daily distance per truck from nothing up to about 150 km', async () => {
+  it('spreads daily distance per truck from nothing up to about 90 km', async () => {
     const { trips, days } = await history()
     const km = ['c1', 'c2'].flatMap((c) => days.map((d) => dayTrips(trips, c, d).reduce((s, t) => s + t.distanceM, 0) / 1000))
     const active = km.filter((x) => x > 0)
-    expect(Math.max(...km)).toBeLessThanOrEqual(160)
+    expect(Math.max(...km)).toBeLessThanOrEqual(120)
     expect(Math.min(...active)).toBeLessThan(30)
-    expect(Math.max(...km)).toBeGreaterThan(100)
+    expect(Math.max(...km)).toBeGreaterThan(70)
     expect(km.filter((x) => x === 0).length).toBeGreaterThan(3)
     // Not blocky: many different 10 km bands are used.
     expect(new Set(active.map((x) => Math.floor(x / 10))).size).toBeGreaterThanOrEqual(7)
   })
 
-  it('runs haul cycles: loaded from a pit to Area 2, empty back, many a day', async () => {
+  it('runs haul cycles: loaded from a start point to Area 2, empty back, many a day', async () => {
     const { trips, days } = await history()
     const titles = new Set(trips.map((t) => `${t.startPlace} > ${t.endPlace}`))
     expect([...titles].sort()).toEqual(
-      ['Area 2 > Pit N', 'Area 2 > Pit S', 'Area 2 > Pit W', 'Pit N > Area 2', 'Pit S > Area 2', 'Pit W > Area 2'],
+      [
+        'Area 2 > Belakang Conveyor',
+        'Area 2 > CWP',
+        'Area 2 > Klinik',
+        'Area 2 > Ventilasi',
+        'Belakang Conveyor > Area 2',
+        'CWP > Area 2',
+        'Klinik > Area 2',
+        'Ventilasi > Area 2',
+      ],
     )
-    // DT-01 never goes to Pit S, DT-02 never to Pit W.
-    expect(trips.some((t) => t.carId === 'c1' && t.startPlace === 'Pit S')).toBe(false)
-    expect(trips.some((t) => t.carId === 'c2' && t.startPlace === 'Pit W')).toBe(false)
+    // DT-01 works CWP and Belakang Conveyor, DT-02 Ventilasi and Klinik.
+    expect(trips.some((t) => t.carId === 'c1' && ['Ventilasi', 'Klinik'].includes(t.startPlace ?? ''))).toBe(false)
+    expect(trips.some((t) => t.carId === 'c2' && ['CWP', 'Belakang Conveyor'].includes(t.startPlace ?? ''))).toBe(false)
     const perDay = ['c1', 'c2'].flatMap((c) => days.map((d) => dayTrips(trips, c, d).length))
     expect(Math.max(...perDay)).toBeGreaterThan(30)
     expect(perDay.filter((n) => n > 0 && n < 20).length).toBeGreaterThan(3)
@@ -341,7 +349,7 @@ describe('mock history realism', () => {
         expect(s.durationMs).toBeGreaterThanOrEqual(2 * MINUTE)
         expect(s.durationMs).toBeLessThan(5 * MINUTE)
       }
-      if (t.drivingMs < 12 * MINUTE) expect(t.stops).toHaveLength(0)
+      if (t.drivingMs < 6 * MINUTE) expect(t.stops).toHaveLength(0)
     }
   })
 
@@ -388,18 +396,18 @@ describe('mock history realism', () => {
     const route = await ds.getRoute('c1', TODAY, NOW + 1)
     const passes = zoneEvents(route, fences).filter((e) => e.kind === 'pass')
     const names = new Set(passes.map((e) => e.name))
-    expect(names).toEqual(new Set(['CP1 West gate', 'CP3 Pit W ramp']))
+    expect(names).toEqual(new Set(['CP Area 2 gate']))
     // Each cycle passes the ramp and the gate twice (loaded out, empty back).
     const trips = (await ds.getTrips('c1', TODAY, NOW + 1)).filter((t) => t.endTime !== null)
-    expect(passes.filter((e) => e.name === 'CP1 West gate').length).toBeGreaterThanOrEqual(trips.length)
+    expect(passes.length).toBeGreaterThanOrEqual(trips.length)
   })
 
-  it('drives real haul roads that start in their pit and end in Area 2', () => {
-    for (const pit of PITS) {
-      const loaded = roadPath(pit.road, true)
-      expect(placeAt(loaded.lat[0], loaded.lon[0])).toBe(pit.name)
+  it('drives real haul roads that start in their start point and end in Area 2', () => {
+    for (const start of STARTS) {
+      const loaded = roadPath(start.road, true)
+      expect(placeAt(loaded.lat[0], loaded.lon[0])).toBe(start.name)
       expect(placeAt(loaded.lat[loaded.lat.length - 1], loaded.lon[loaded.lon.length - 1])).toBe(SITE.name)
-      expect(loaded.length).toBeGreaterThan(1500)
+      expect(loaded.length).toBeGreaterThan(1300)
     }
   })
 

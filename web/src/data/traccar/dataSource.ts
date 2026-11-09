@@ -11,7 +11,7 @@
 //    where the current drive began.
 import { config as appConfig, type Config } from '../../config'
 import { carStatus, sortPositions, summarizeTrips } from '../derive'
-import { EditRefused, truckInputProblem, type CheckpointEditor, type ConnectionState, type DataSource, type TruckEditor, type TruckInput, type TruckRecord } from '../source'
+import { EditRefused, truckInputProblem, type LocationEditor, type ConnectionState, type DataSource, type TruckEditor, type TruckInput, type TruckRecord } from '../source'
 import type { Car, Geofence, Position, Stop, Summary, Trip } from '../types'
 import type { TraccarDevice, TraccarGeofence, TraccarPosition, TraccarSocketMessage, TraccarStop, TraccarTrip, TraccarUser } from './api'
 import { createTraccarAuth, type TraccarAuth } from './auth'
@@ -21,6 +21,7 @@ import { buildInProgressTrip, findOpenTrip, OPEN_TRIP_TOLERANCE_MS, withInProgre
 import { derivePauses, totalPauseMs } from './pauses'
 import { createLiveSocket, type SocketCtor } from './socket'
 import { circleWkt } from './wkt'
+import { LOCATION_TYPE } from './convert'
 
 /** Trips are asked for from this long before `from`, so a drive that began before the range is returned whole (as the mock does). */
 const TRIP_PADDING_MS = 6 * 60 * 60 * 1000
@@ -108,7 +109,7 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
   const getRawGeofences = cached(() => http.getJson<TraccarGeofence[]>('/api/geofences'))
   const getGeofences = async (): Promise<Geofence[]> => toGeofences(await getRawGeofences(), cfg)
 
-  // --- checkpoints: admins add, change and delete them (the web proxy lets only these changes through) ----------
+  // --- locations: admins add, change and delete them (the web proxy lets only these changes through) ------------
   const geofenceListeners = new Set<() => void>()
   const geofencesChanged = () => {
     getRawGeofences.reset()
@@ -131,17 +132,18 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
     const [me, users] = await Promise.all([sessionUser(), http.getJson<TraccarUser[]>('/api/users')])
     for (const u of users.filter((u) => u.id !== me?.id)) await http.send('POST', '/api/permissions', { userId: u.id, ...link })
   }
-  const checkpoints: CheckpointEditor = {
+  const locations: LocationEditor = {
     canEdit: isEditor,
     async save(input, id) {
       const fields = { name: input.name.trim(), area: circleWkt(input.lat, input.lon, input.radiusM) }
+      const type = LOCATION_TYPE[input.kind]
       if (id === undefined) {
-        const created = await http.send<TraccarGeofence>('POST', '/api/geofences', { ...fields, attributes: { type: 'checkpoint' } })
+        const created = await http.send<TraccarGeofence>('POST', '/api/geofences', { ...fields, attributes: { type } })
         if (created) await shareWithEveryone({ geofenceId: created.id })
       } else {
         const current = (await getRawGeofences()).find((g) => String(g.id) === id)
-        if (!current) throw new Error(`Checkpoint ${id} no longer exists`)
-        await http.send('PUT', `/api/geofences/${id}`, { ...current, ...fields, attributes: { ...current.attributes, type: 'checkpoint' } })
+        if (!current) throw new EditRefused('That location no longer exists. Reload the page.')
+        await http.send('PUT', `/api/geofences/${id}`, { ...current, ...fields, attributes: { ...current.attributes, type } })
       }
       geofencesChanged()
     },
@@ -401,7 +403,7 @@ export function createTraccarDataSource(opts: TraccarSourceOptions = {}): DataSo
   return {
     getCars,
     getGeofences,
-    checkpoints,
+    locations,
     trucks,
     onCarsChange(listener) {
       carListeners.add(listener)

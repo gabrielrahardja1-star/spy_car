@@ -1,6 +1,6 @@
-// Seeded history for the 30 local days before today: shifts of haul cycles between a pit and Area 2.
+// Seeded history for the 30 local days before today: shifts of haul cycles between a start point and Area 2.
 import type { Position, SignalGap, Trip } from '../types'
-import { PIT_N, PIT_S, PIT_W, type PitDef } from './places'
+import { CONVEYOR, CWP, KLINIK, VENTILASI, type StartPoint } from './places'
 import { roadPath } from './route'
 import { DUMP_MS, LOAD_MS } from './today'
 import { buildTrip, type StopPlan } from './trips'
@@ -10,7 +10,7 @@ import { HOUR, hashSeed, localDayStart, localWeekday, MINUTE, mulberry32 } from 
 export const HISTORY_DAYS = 31
 const HISTORY_INTERVAL_MS = 30_000
 /** Runs at least this long can have a short wait (giving way, a crossing) or a signal gap. */
-const LONG_RUN_MS = 12 * MINUTE
+const LONG_RUN_MS = 6 * MINUTE
 
 export interface History {
   /** Oldest first. */
@@ -22,13 +22,13 @@ export interface History {
 
 /** Idle chance per weekday (0 = Sunday). */
 const IDLE_CHANCE = [0.7, 0.1, 0.07, 0.07, 0.1, 0.12, 0.4]
-/** Pits each truck is sent to, with their chance. */
-const ASSIGNMENTS: [PitDef, number][][] = [
-  [[PIT_W, 0.7], [PIT_N, 0.3]],
-  [[PIT_S, 0.55], [PIT_N, 0.45]],
+/** Start points each truck is sent to, with their chance. */
+const ASSIGNMENTS: [StartPoint, number][][] = [
+  [[CWP, 0.6], [CONVEYOR, 0.4]],
+  [[VENTILASI, 0.55], [KLINIK, 0.45]],
 ]
 
-function pickPit(rng: () => number, carIdx: number): PitDef {
+function pickStart(rng: () => number, carIdx: number): StartPoint {
   const options = ASSIGNMENTS[carIdx % ASSIGNMENTS.length]
   let roll = rng()
   for (const [pit, chance] of options) {
@@ -55,8 +55,8 @@ export function buildHistory(todayStart: number, tz: string, carIds: string[]): 
     carIds.forEach((carId, carIdx) => {
       const rng = mulberry32(hashSeed(day.start, carIdx, 7))
       if (rng() < IDLE_CHANCE[weekday]) return
-      const pit = pickPit(rng, carIdx)
-      const legs = [roadPath(pit.road, true), roadPath(pit.road, false)]
+      const from = pickStart(rng, carIdx)
+      const legs = [roadPath(from.road, true), roadPath(from.road, false)]
       let t = day.start + (6 + rng() * 0.75) * HOUR
       const shiftEnd = t + (weekend ? 3 + rng() * 3 : 7 + rng() * 4) * HOUR
       const breakAt = t + (shiftEnd - t) * (0.4 + rng() * 0.2)
@@ -85,7 +85,7 @@ export function buildHistory(todayStart: number, tz: string, carIds: string[]): 
         history.fixes.get(carId)?.push(...built.fixes)
         if (built.gap) history.gaps.push(built.gap)
         t += elapsed
-        // Meal break at the pit, after an empty run.
+        // Meal break at the start point, after an empty run.
         if (!loaded && !tookBreak && t >= breakAt) {
           t += (40 + rng() * 30) * MINUTE
           tookBreak = true
@@ -103,11 +103,11 @@ function pickStops(rng: () => number, drivingMs: number): StopPlan[] {
   return [{ atDrivingMs, durMs: Math.round(2 + rng() * 2) * MINUTE }]
 }
 
-/** Occasionally a 6 to 10 minute signal gap on a long run (weak coverage on the far haul road), kept clear of stops. */
+/** Occasionally a 6 minute signal gap early in a long run (weak coverage on the haul road), kept clear of stops. */
 function pickGap(rng: () => number, drivingMs: number, stops: StopPlan[]): { offsetMs: number; durMs: number } | undefined {
-  if (drivingMs < LONG_RUN_MS + 6 * MINUTE || rng() >= 0.06) return undefined
-  const durMs = Math.round(6 + rng() * 4) * MINUTE
-  const drivingOffset = drivingMs * (0.25 + rng() * 0.15)
+  if (drivingMs < 8 * MINUTE || rng() >= 0.08) return undefined
+  const durMs = 6 * MINUTE
+  const drivingOffset = drivingMs * (0.1 + rng() * 0.1)
   // Stops before the gap push it later on the elapsed axis; skip the gap if it would touch one.
   const earlier = stops.filter((s) => s.atDrivingMs < drivingOffset)
   const offsetMs = drivingOffset + earlier.reduce((sum, s) => sum + s.durMs, 0)

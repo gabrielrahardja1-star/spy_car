@@ -47,9 +47,13 @@ export function toPosition(p: TraccarPosition, cfg: Config = config): Position |
   }
 }
 
+/** The geofence attribute `type` the app writes for each kind of location. */
+export const LOCATION_TYPE: Record<Geofence['kind'], string> = { site: 'end', place: 'start', checkpoint: 'checkpoint' }
+
 /**
- * Geofences with a usable shape. The one named like cfg.siteGeofenceName (case-insensitive) is the site zone; one with
- * the attribute type = checkpoint (case-insensitive) is a checkpoint.
+ * Geofences with a usable shape, typed by their attribute `type` (case-insensitive): "end" is the site zone (the dump),
+ * "checkpoint" a checkpoint, anything else (or none) a place. A geofence named like cfg.siteGeofenceName is also the
+ * site zone, for zones drawn before the attribute existed.
  */
 export function toGeofences(list: TraccarGeofence[], cfg: Config = config): Geofence[] {
   const siteName = cfg.siteGeofenceName.trim().toLowerCase()
@@ -58,15 +62,11 @@ export function toGeofences(list: TraccarGeofence[], cfg: Config = config): Geof
     const polygon = parseArea(g.area)
     if (!polygon) continue
     const circle = parseCircle(g.area)
+    const type = String(g.attributes?.type ?? '').trim().toLowerCase()
     out.push({
       id: String(g.id),
       name: g.name,
-      kind:
-        g.name.trim().toLowerCase() === siteName
-          ? 'site'
-          : String(g.attributes?.type ?? '').trim().toLowerCase() === 'checkpoint'
-            ? 'checkpoint'
-            : 'place',
+      kind: g.name.trim().toLowerCase() === siteName || type === 'end' ? 'site' : type === 'checkpoint' ? 'checkpoint' : 'place',
       polygon,
       ...(circle ? { circle } : {}),
     })

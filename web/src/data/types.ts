@@ -47,9 +47,10 @@ export interface Circle {
   radiusM: number
 }
 
-/** What an admin enters for a checkpoint: a name and a circle. */
-export interface CheckpointInput extends Circle {
+/** What an admin enters for a location: a name, its type and a circle. */
+export interface LocationInput extends Circle {
   name: string
+  kind: Geofence['kind']
 }
 
 export interface Stop {

@@ -18,9 +18,9 @@ export function TruckSetup({ truck }: { truck: TruckRecord }) {
       <div className={styles.setup}>
         <p>On a computer with this project, in the <code>web</code> folder, run:</p>
         <pre className={styles.code}>
-          {`npm run simulate-car -- --host ${host} --id ${truck.trackerId} --profile dump-truck --lat -3.16880 --lon 115.26846 --to-lat -3.172511 --to-lon 115.281808`}
+          {`npm run simulate-car -- --host ${host} --id ${truck.trackerId} --profile dump-truck --lat -3.176917 --lon 115.273364 --to-lat -3.172511 --to-lon 115.281808`}
         </pre>
-        <p className={styles.note}>It drives Pit W to Area 2 and back on real roads until you press Ctrl+C.</p>
+        <p className={styles.note}>It drives CWP to Area 2 and back on real roads until you press Ctrl+C. Change --lat/--lon for another start point.</p>
         {unset}
       </div>
     )
