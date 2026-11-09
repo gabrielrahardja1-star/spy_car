@@ -33,3 +33,24 @@
   background: var(--map-ground);
   border: 1px solid var(--line);
 }
+
+/* Wide screens: the page is one screen tall; the side panel scrolls on its own and the map keeps the full height, so
+   its controls (the playback bar) stay in view however long the list is. */
+@media (min-width: 1024px) {
+  .main {
+    flex-wrap: nowrap;
+    min-height: 0;
+  }
+
+  .panel {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 6px 8px 0;
+  }
+
+  .map {
+    min-height: 420px;
+  }
+}
+

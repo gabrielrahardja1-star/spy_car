@@ -149,6 +149,17 @@ export function HistoryMapView({ path, driven, start, end, stops, car, geofences
     if (camera) move(camera)
   }
 
+/** Pans to the car when it is outside the visible part of the map (a timeline row was picked, or playback ran off). */
+  const keepInView = (map: MapLibreMap, position: LngLat) => {
+    if (map.isMoving()) return // a route is being framed; that move shows the car already
+    const { width, height } = map.getContainer().getBoundingClientRect()
+    const p = map.project(position)
+    // The playback bar covers the bottom of the map, so that strip does not count as visible.
+    const margin = 48
+    if (p.x >= margin && p.x <= width - margin && p.y >= margin && p.y <= height - Math.min(200, height * 0.35)) return
+    map.easeTo({ center: position, duration: reducedMotion() ? 0 : 600 })
+  }
+
   useImperativeHandle(ref, () => ({
     fitRoute: () => fit(true),
     zoomBy(delta) {
@@ -245,6 +256,7 @@ export function HistoryMapView({ path, driven, start, end, stops, car, geofences
       }
       carMarker.current.marker.setLngLat(car.position)
       carMarker.current.view.update(car.title, car.detail)
+      keepInView(map, car.position)
     }
     drawCar(carsOverlay.current, car)
   }, [car, ready])

@@ -107,3 +107,17 @@
   color: var(--ink);
   font-weight: 600;
 }
+
+/* Wide screens: exactly one screen tall; a screen taller than that (the Dashboard) scrolls inside .main. */
+@media (min-width: 1024px) {
+  .page {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .main {
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
